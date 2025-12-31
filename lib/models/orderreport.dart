@@ -1,0 +1,139 @@
+// To parse this JSON data, do
+//
+//     final orderReportModel = orderReportModelFromJson(jsonString);
+
+import 'dart:convert';
+
+List<OrderReportModel> orderReportModelFromJson(String str) =>
+    List<OrderReportModel>.from(
+      json.decode(str).map((x) => OrderReportModel.fromJson(x)),
+    );
+
+String orderReportModelToJson(List<OrderReportModel> data) =>
+    json.encode(List<dynamic>.from(data.map((x) => x.toJson())));
+
+class OrderReportModel {
+  int orderId;
+  int orderNo;
+  DateTime orderDate;
+  String customerName;
+  String customerMobile;
+  String customerAddress;
+  String paymentStatus;
+  String deliveryStatus;
+  String orderStatus;
+  int totalDiscount;
+  int grandTotal;
+  List<OrderItem> orderItems;
+
+  OrderReportModel({
+    required this.orderId,
+    required this.orderNo,
+    required this.orderDate,
+    required this.customerName,
+    required this.customerMobile,
+    required this.customerAddress,
+    required this.paymentStatus,
+    required this.deliveryStatus,
+    required this.orderStatus,
+    required this.totalDiscount,
+    required this.grandTotal,
+    required this.orderItems,
+  });
+
+  factory OrderReportModel.fromJson(Map<String, dynamic> json) =>
+      OrderReportModel(
+        orderId: _toInt(json["order_id"]),
+        orderNo: _toInt(json["order_no"]),
+        orderDate: DateTime.parse(json["order_date"]),
+        customerName: json["customer_name"] ?? '',
+        customerMobile: json["customer_mobile"] ?? '',
+        customerAddress: json["customer_address"] ?? '',
+        paymentStatus: json["payment_status"] ?? '',
+        deliveryStatus: json["delivery_status"] ?? '',
+        orderStatus: json["order_status"] ?? '',
+        totalDiscount: _toInt(json["total_discount"]),
+        grandTotal: _toInt(json["grand_total"]),
+        orderItems: List<OrderItem>.from(
+          (json["order_items"] ?? []).map((x) => OrderItem.fromJson(x)),
+        ),
+      );
+
+  Map<String, dynamic> toJson() => {
+    "order_id": orderId,
+    "order_no": orderNo,
+    "order_date": orderDate.toIso8601String(),
+    "customer_name": customerName,
+    "customer_mobile": customerMobile,
+    "customer_address": customerAddress,
+    "payment_status": paymentStatus,
+    "delivery_status": deliveryStatus,
+    "order_status": orderStatus,
+    "total_discount": totalDiscount,
+    "grand_total": grandTotal,
+    "order_items": List<dynamic>.from(orderItems.map((x) => x.toJson())),
+  };
+}
+
+class OrderItem {
+  String serviceNameX;
+  String serviceType;
+  String serviceItemNameX;
+  int unitRate;
+  int qty;
+  int discount;
+  int lineTotal;
+  String itemStatus;
+  String extraNote;
+  DateTime itemDeliveryDate;
+  String itemDeliveredBy;
+
+  OrderItem({
+    required this.serviceNameX,
+    required this.serviceType,
+    required this.serviceItemNameX,
+    required this.unitRate,
+    required this.qty,
+    required this.discount,
+    required this.lineTotal,
+    required this.itemStatus,
+    required this.extraNote,
+    required this.itemDeliveryDate,
+    required this.itemDeliveredBy,
+  });
+
+  factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
+    serviceNameX: json["service_name_x"] ?? '',
+    serviceType: json["service_type"] ?? '',
+    serviceItemNameX: json["service_item_name_x"] ?? '',
+    unitRate: _toInt(json["unit_rate"]),
+    qty: _toInt(json["qty"]),
+    discount: _toInt(json["discount"]),
+    lineTotal: _toInt(json["line_total"]),
+    itemStatus: json["item_status"] ?? '',
+    extraNote: json["extra_note"] ?? '',
+    itemDeliveryDate: DateTime.parse(json["item_delivery_date"]),
+    itemDeliveredBy: json["item_delivered_by"] ?? '',
+  );
+
+  Map<String, dynamic> toJson() => {
+    "service_name_x": serviceNameX,
+    "service_type": serviceType,
+    "service_item_name_x": serviceItemNameX,
+    "unit_rate": unitRate,
+    "qty": qty,
+    "discount": discount,
+    "line_total": lineTotal,
+    "item_status": itemStatus,
+    "extra_note": extraNote,
+    "item_delivery_date": itemDeliveryDate.toIso8601String(),
+    "item_delivered_by": itemDeliveredBy,
+  };
+}
+
+int _toInt(dynamic value) {
+  if (value == null) return 0;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  return int.tryParse(value.toString()) ?? 0;
+}
