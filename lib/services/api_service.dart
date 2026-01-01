@@ -1,17 +1,20 @@
 import 'package:dio/dio.dart';
-import 'package:laundry/models/orderreport.dart';
 import 'package:laundry/models/itemwise.dart';
+import 'package:laundry/models/orderreport.dart';
+import 'package:laundry/services/api_endpoints.dart';
 
 class ApiService {
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: 'https://alleged-buyers-fastest-appearance.trycloudflare.com/api/v1/integration/',
-    connectTimeout: const Duration(seconds: 15),
-    receiveTimeout: const Duration(seconds: 15),
-  ));
+  Dio get _dio => Dio(
+    BaseOptions(
+      baseUrl: ApiEndpoints.baseUrl,
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> fetchServices() async {
     try {
-      final response = await _dio.get('services/');
+      final response = await _dio.get(ApiEndpoints.services);
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(response.data);
       }
@@ -23,7 +26,7 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>> fetchItems() async {
     try {
-      final response = await _dio.get('items/');
+      final response = await _dio.get(ApiEndpoints.items);
       if (response.statusCode == 200) {
         return List<Map<String, dynamic>>.from(response.data);
       }
@@ -43,14 +46,15 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.get(
-        'order-report/',
+        ApiEndpoints.orderReport,
         queryParameters: {
           'start_date': startDate,
           'end_date': endDate,
           'order_status': orderStatus,
           'payment_status': paymentStatus,
           'delivery_status': deliveryStatus,
-          if (customerId != null && customerId.isNotEmpty) 'customer_id': customerId,
+          if (customerId != null && customerId.isNotEmpty)
+            'customer_id': customerId,
         },
       );
 
@@ -78,14 +82,15 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.get(
-        'item-wise-report/',
+        ApiEndpoints.itemWiseReport,
         queryParameters: {
           'start_date': startDate,
           'end_date': endDate,
           'order_status': orderStatus,
           'payment_status': paymentStatus,
           'delivery_status': deliveryStatus,
-          if (customerId != null && customerId.isNotEmpty) 'customer_id': customerId,
+          if (customerId != null && customerId.isNotEmpty)
+            'customer_id': customerId,
           if (serviceName != null) 'service_id': serviceName,
           if (itemName != null) 'item_id': itemName,
           if (serviceType != null) 'service_type': serviceType,
@@ -94,7 +99,9 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
-        return data.map((json) => ItemWiseorderreportModel.fromJson(json)).toList();
+        return data
+            .map((json) => ItemWiseorderreportModel.fromJson(json))
+            .toList();
       } else {
         throw Exception('Failed to load item-wise report');
       }

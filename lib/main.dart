@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:laundry/screens/homescreen.dart';
 
-void main() {
+import 'package:laundry/services/api_endpoints.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ApiEndpoints.init();
   runApp(const MyApp());
 }
 

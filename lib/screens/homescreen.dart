@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:laundry/utilities/gapfunc.dart';
-import 'package:laundry/services/api_service.dart';
-import 'package:laundry/models/orderreport.dart';
-import 'package:laundry/models/itemwise.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:laundry/models/itemwise.dart';
+import 'package:laundry/models/orderreport.dart';
+import 'package:laundry/screens/ip_config_dialog.dart';
+import 'package:laundry/services/api_service.dart';
+import 'package:laundry/utilities/colors.dart';
+import 'package:laundry/utilities/gapfunc.dart';
 
 class Homescreen extends StatefulWidget {
   const Homescreen({super.key});
@@ -118,8 +121,10 @@ class _HomescreenState extends State<Homescreen> {
 
   @override
   Widget build(BuildContext context) {
+    final deliveryCounts = buildDeliveryStatusCount();
     return Scaffold(
       backgroundColor: const Color(0xFFF3F3F3),
+
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -127,7 +132,46 @@ class _HomescreenState extends State<Homescreen> {
               _buildHeader(),
               _buildTitleBanner(),
               _buildFilterSection(),
+              if (_isItemWise) ...[
+                Container(
+                  width: double.infinity,
+                  color: Colors.brown,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        statusChip(
+                          label: "All",
+                          count: getTotalCount(),
+                          color: whiteColor,
+                        ),
+                        statusChip(
+                          label: "Processing",
+                          count: deliveryCounts['processing'] ?? 0,
+                          color: orangeShade,
+                        ),
+                        statusChip(
+                          label: "Ready for Delivery",
+                          count: deliveryCounts['ready for delivery'] ?? 0,
+                          color: greenShade,
+                        ),
+                        statusChip(
+                          label: "Delivered",
+                          count: deliveryCounts["delivered"] ?? 0,
+                          color: Colors.pink.shade100,
+                        ),
+                        const SizedBox(width: 8), // Padding at the end
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
+              // ),
               _buildOrdersTable(),
+              vertGap(10),
             ],
           ),
         ),
@@ -135,6 +179,20 @@ class _HomescreenState extends State<Homescreen> {
     );
   }
 
+  Map<String, int> buildDeliveryStatusCount() {
+    final Map<String, int> counts = {};
+
+    for (final item in _itemWise) {
+      final status = item.itemStatus?.trim().toLowerCase();
+      if (status == null || status.isEmpty) continue;
+
+      counts[status] = (counts[status] ?? 0) + 1;
+    }
+
+    return counts;
+  }
+
+  int getTotalCount() => _itemWise.map((e) => e.itemStatus).length;
   Widget _buildHeader() {
     return Container(
       color: Colors.white,
@@ -150,17 +208,48 @@ class _HomescreenState extends State<Homescreen> {
                 Text(
                   "Laundry Management",
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF333333),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   "Automate, Track, Deliver Effortlessly",
-                  style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
+                  style: TextStyle(fontSize: 12, color: Color(0xFF666666)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
+          ),
+          IconButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => const IpConfigDialog(),
+              );
+            },
+            icon: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.teal.withValues(alpha: 0.12),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                'IP',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.teal,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            tooltip: 'Configure IP Address',
           ),
         ],
       ),
@@ -353,23 +442,6 @@ class _HomescreenState extends State<Homescreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Service Type",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildServiceTypeToggle(),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 18),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
                         _buildDropdownFilter(
                           "Category:",
                           _selectedService,
@@ -382,6 +454,19 @@ class _HomescreenState extends State<Homescreen> {
                           (v) => setState(() => _selectedService = v!),
                         ),
                         const SizedBox(height: 12),
+                        _buildTypeButton(
+                          "Normal",
+                          Colors.green,
+                          _serviceType == "Normal",
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         _buildDropdownFilter(
                           "Item:",
                           _selectedItem,
@@ -392,6 +477,12 @@ class _HomescreenState extends State<Homescreen> {
                             ),
                           ],
                           (v) => setState(() => _selectedItem = v!),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTypeButton(
+                          "Express",
+                          Colors.red,
+                          _serviceType == "Express",
                         ),
                       ],
                     ),
@@ -531,18 +622,6 @@ class _HomescreenState extends State<Homescreen> {
     );
   }
 
-  Widget _buildServiceTypeToggle() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        // _buildTypeButton("All", Colors.blueGrey, _serviceType == "All"),
-        _buildTypeButton("Normal", Colors.green, _serviceType == "Normal"),
-        _buildTypeButton("Express", Colors.red, _serviceType == "Express"),
-      ],
-    );
-  }
-
   Widget _buildTypeButton(String label, Color color, bool isActive) {
     return GestureDetector(
       onTap: () => setState(() => _serviceType = label),
@@ -589,7 +668,7 @@ class _HomescreenState extends State<Homescreen> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -624,7 +703,7 @@ class _HomescreenState extends State<Homescreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  "${formatDate(order.orderDate)} • ${formatTime(order.orderDate)}",
+                  "${formatDate(order.orderDate)} / ${formatTime(order.orderDate)}",
                 ),
               ],
             ),
@@ -645,23 +724,62 @@ class _HomescreenState extends State<Homescreen> {
             Row(
               children: [
                 Expanded(
-                  child: _buildStatusBadge(
-                    order.paymentStatus,
-                    _getStatusColor(order.paymentStatus),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "Payment",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: blackColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildStatusBadge(
+                        order.paymentStatus,
+                        _getStatusColor(order.paymentStatus),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildStatusBadge(
-                    order.orderStatus,
-                    _getStatusColor(order.orderStatus),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "Order Status",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: blackColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildStatusBadge(
+                        order.orderStatus,
+                        _getStatusColor(order.orderStatus),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildStatusBadge(
-                    order.deliveryStatus,
-                    _getStatusColor(order.deliveryStatus),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "Delivery ",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: blackColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildStatusBadge(
+                        order.deliveryStatus,
+                        _getStatusColor(order.deliveryStatus),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -696,22 +814,45 @@ class _HomescreenState extends State<Homescreen> {
     );
   }
 
-  Widget _buildStatusBadge(String text, Color color) {
+  Widget _buildFullCellStatus(
+    String text,
+    Color bgColor, {
+    Color textColor = Colors.white,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color, width: 1.5),
+      constraints: const BoxConstraints.expand(),
+      alignment: Alignment.center,
+      color: bgColor,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
       ),
-      child: Center(
+    );
+  }
+
+  Widget _buildStatusBadge(String status, Color color) {
+    return Align(
+      alignment: Alignment.center, // or center
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 7),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(05),
+        ),
         child: Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
+          status,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
           ),
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );
@@ -725,56 +866,85 @@ class _HomescreenState extends State<Homescreen> {
       );
     }
     return Card(
-      margin: const EdgeInsets.all(12),
       clipBehavior: Clip.antiAlias,
       elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
+          dataRowMinHeight: 48,
+          dataRowMaxHeight: 48,
+          horizontalMargin: 0,
+          columnSpacing: 0,
           headingRowColor: WidgetStateProperty.all(Colors.grey.shade200),
           border: TableBorder(
             horizontalInside: BorderSide(color: Colors.grey.shade400),
             verticalInside: BorderSide(color: Colors.grey.shade400),
+            right: BorderSide(color: Colors.grey.shade400),
+            left: BorderSide(color: Colors.grey.shade400),
+            top: BorderSide(color: Colors.grey.shade400),
+            bottom: BorderSide(color: Colors.grey.shade400),
           ),
-          columns: const [
-            DataColumn(label: Text("Order No")),
-            DataColumn(label: Text("Date")),
-            DataColumn(label: Text("Service")),
-            DataColumn(label: Text("Item")),
-            DataColumn(label: Text("Customer")),
-            DataColumn(label: Text("Mobile")),
-            DataColumn(label: Text("Payment")),
-            DataColumn(label: Text("Order Status")),
-            DataColumn(label: Text("Delivery Status")),
+          columns: [
+            _buildColumn("Order No"),
+            _buildColumn("Date"),
+            _buildColumn("Service"),
+            _buildColumn("Type"),
+            _buildColumn("Item"),
+            _buildColumn("status"),
+            _buildColumn("Customer"),
+            _buildColumn("Mobile"),
+            _buildColumn("Address"),
+            _buildColumn("Payment"),
+            _buildColumn("Order Status"),
+            _buildColumn("Delivery Status"),
           ],
           rows: _itemWise.map((item) {
             return DataRow(
               cells: [
-                DataCell(Text("${item.orderNo}")),
-                DataCell(
+                _buildDataCell(Text("${item.orderNo}")),
+                _buildDataCell(
                   Text(
                     "${formatDate(item.orderDate)} ${formatTime(item.orderDate)}",
                   ),
                 ),
-                DataCell(Text(item.serviceName)),
-                DataCell(Text(item.item)),
-                DataCell(Text(item.customerName)),
-                DataCell(Text(item.customerMobile)),
+                _buildDataCell(Text(item.serviceName)),
                 DataCell(
-                  _buildStatusBadge(
+                  _buildFullCellStatus(
+                    item.serviceType,
+                    _getServiceTypeColor(item.serviceType),
+                  ),
+                ),
+                _buildDataCell(Text(item.item)),
+                DataCell(
+                  _buildFullCellStatus(
+                    item.itemStatus,
+                    _getItemColor(item.itemStatus),
+                  ),
+                ),
+                _buildDataCell(Text(item.customerName)),
+                _buildDataCell(Text(item.customerMobile)),
+                _buildDataCell(
+                  Text(
+                    item.customerAddress.isEmpty
+                        ? "Null"
+                        : item.customerAddress,
+                  ),
+                ),
+                DataCell(
+                  _buildFullCellStatus(
                     item.paymentStatus,
                     _getStatusColor(item.paymentStatus),
                   ),
                 ),
                 DataCell(
-                  _buildStatusBadge(
+                  _buildFullCellStatus(
                     item.orderStatus,
                     _getStatusColor(item.orderStatus),
                   ),
                 ),
                 DataCell(
-                  _buildStatusBadge(
+                  _buildFullCellStatus(
                     item.deliveryStatus,
                     _getStatusColor(item.deliveryStatus),
                   ),
@@ -806,6 +976,95 @@ class _HomescreenState extends State<Homescreen> {
     }
   }
 
+  Color _getServiceTypeColor(String status) {
+    switch (status.toLowerCase()) {
+      case "express":
+        return Colors.red;
+      case "normal":
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getItemColor(String status) {
+    switch (status.toLowerCase()) {
+      case "processing":
+        return Colors.red;
+      case "ready for delivery":
+        return Colors.green;
+      case "delivered":
+        return Colors.grey;
+      default:
+        return Colors.grey;
+    }
+  }
+
   String formatDate(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
   String formatTime(DateTime d) => DateFormat('h:mm a').format(d);
+
+  Widget statusChip({
+    required String label,
+    required int count,
+    required Color color,
+    VoidCallback? onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+          // border: Border.all(color: Colors.black87, width: 1.2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                count.toString(),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  DataColumn _buildColumn(String label) {
+    return DataColumn(
+      label: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  DataCell _buildDataCell(Widget child) {
+    return DataCell(
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: child,
+      ),
+    );
+  }
 }

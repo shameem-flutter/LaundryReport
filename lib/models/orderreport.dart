@@ -85,7 +85,7 @@ class OrderItem {
   int lineTotal;
   String itemStatus;
   String extraNote;
-  DateTime itemDeliveryDate;
+  DateTime? itemDeliveryDate; // Made nullable
   String itemDeliveredBy;
 
   OrderItem({
@@ -98,7 +98,7 @@ class OrderItem {
     required this.lineTotal,
     required this.itemStatus,
     required this.extraNote,
-    required this.itemDeliveryDate,
+    this.itemDeliveryDate, // No longer required
     required this.itemDeliveredBy,
   });
 
@@ -112,7 +112,9 @@ class OrderItem {
     lineTotal: _toInt(json["line_total"]),
     itemStatus: json["item_status"] ?? '',
     extraNote: json["extra_note"] ?? '',
-    itemDeliveryDate: DateTime.parse(json["item_delivery_date"]),
+    itemDeliveryDate: json["item_delivery_date"] != null
+        ? DateTime.parse(json["item_delivery_date"])
+        : null,
     itemDeliveredBy: json["item_delivered_by"] ?? '',
   );
 
@@ -126,7 +128,7 @@ class OrderItem {
     "line_total": lineTotal,
     "item_status": itemStatus,
     "extra_note": extraNote,
-    "item_delivery_date": itemDeliveryDate.toIso8601String(),
+    "item_delivery_date": itemDeliveryDate?.toIso8601String(),
     "item_delivered_by": itemDeliveredBy,
   };
 }
