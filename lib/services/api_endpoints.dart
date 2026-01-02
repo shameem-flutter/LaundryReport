@@ -2,7 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiEndpoints {
   static String baseUrl =
-      'https://monster-sleeve-paragraphs-enrollment.trycloudflare.com/';
+      'https://rabbit-titanium-thereby-analysis.trycloudflare.com/';
   static const String _baseUrlKey = 'api_base_url';
 
   static Future<void> init() async {
@@ -33,8 +33,10 @@ class ApiEndpoints {
 
   static const String services = 'api/v1/integration/services/';
   static const String items = 'api/v1/integration/items/';
+  static const String custName = 'api/v1/integration/customer/';
   static const String orderReport = 'api/v1/integration/order-report/';
   static const String itemWiseReport = 'api/v1/integration/item-wise-report/';
+  static const String checkLicense = 'api/v2/license/check_license_status/';
 
   // User provided endpoints for reference/future use
   // static const String login = 'api/v1/accounts/login/';

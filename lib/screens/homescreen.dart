@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:laundry/models/customer.dart';
 import 'package:laundry/models/itemwise.dart';
 import 'package:laundry/models/orderreport.dart';
+import 'package:laundry/models/item.dart';
+import 'package:laundry/models/services.dart';
 import 'package:laundry/screens/ip_config_dialog.dart';
 import 'package:laundry/services/api_service.dart';
 import 'package:laundry/utilities/colors.dart';
@@ -39,9 +42,13 @@ class _HomescreenState extends State<Homescreen> {
   String _serviceType = "All";
   String _selectedService = "All";
   String _selectedItem = "All";
+  String _selectedCustomer = "All";
 
-  List<Map<String, dynamic>> _apiServices = [];
-  List<Map<String, dynamic>> _apiItems = [];
+  String? _selectedCustomerId;
+
+  List<ServicesModel> _apiServices = [];
+  List<ItemModel> _apiItems = [];
+  List<CustomerModel> _customerName = [];
 
   @override
   void initState() {
@@ -52,11 +59,26 @@ class _HomescreenState extends State<Homescreen> {
   Future<void> _loadFilterData() async {
     final services = await _apiService.fetchServices();
     final items = await _apiService.fetchItems();
-    if (mounted) {
-      setState(() {
-        _apiServices = services;
-        _apiItems = items;
-      });
+    final custDetails = await _apiService.fetchCustName();
+    if (!mounted) return;
+    setState(() {
+      _apiServices = services;
+      _apiItems = items;
+      _customerName = custDetails;
+    });
+
+    if (_selectedService != "All" &&
+        !_apiServices.any((e) => e.serviceName == _selectedService)) {
+      _selectedService = "All";
+    }
+
+    if (_selectedItem != "All" &&
+        !_apiItems.any((e) => e.serviceItemName == _selectedItem)) {
+      _selectedItem = "All";
+    }
+    if (_selectedCustomer != "All" &&
+        !_customerName.any((e) => e.customerName == _selectedCustomer)) {
+      _selectedCustomer = "All";
     }
   }
 
@@ -70,19 +92,23 @@ class _HomescreenState extends State<Homescreen> {
         String serviceId = "All";
         if (_selectedService != "All") {
           final service = _apiServices.firstWhere(
-            (e) => e['service_name'] == _selectedService,
-            orElse: () => {"service_id": "All"},
+            (e) => e.serviceName == _selectedService,
+            orElse: () => ServicesModel(serviceId: 0, serviceName: "All"),
           );
-          serviceId = service['service_id'].toString();
+          serviceId = service.serviceId == 0
+              ? "All"
+              : service.serviceId.toString();
         }
 
         String itemId = "All";
         if (_selectedItem != "All") {
           final item = _apiItems.firstWhere(
-            (e) => e['service_item_name'] == _selectedItem,
-            orElse: () => {"service_item_id": "All"},
+            (e) => e.serviceItemName == _selectedItem,
+            orElse: () => ItemModel(serviceItemId: 0, serviceItemName: "All"),
           );
-          itemId = item['service_item_id'].toString();
+          itemId = item.serviceItemId == 0
+              ? "All"
+              : item.serviceItemId.toString();
         }
 
         final results = await _apiService.fetchItemWiseReport(
@@ -91,7 +117,7 @@ class _HomescreenState extends State<Homescreen> {
           orderStatus: _orderStatus,
           paymentStatus: _paymentStatus,
           deliveryStatus: _deliveryStatus,
-          customerId: _customerController.text,
+          customerId: _selectedCustomer == "All" ? null : _selectedCustomerId,
           serviceName: serviceId,
           itemName: itemId,
           serviceType: _serviceType,
@@ -104,7 +130,7 @@ class _HomescreenState extends State<Homescreen> {
           orderStatus: _orderStatus,
           paymentStatus: _paymentStatus,
           deliveryStatus: _deliveryStatus,
-          customerId: _customerController.text,
+          customerId: _selectedCustomer == "All" ? null : _selectedCustomerId,
         );
         setState(() => _orders = results);
       }
@@ -132,6 +158,19 @@ class _HomescreenState extends State<Homescreen> {
               _buildHeader(),
               _buildTitleBanner(),
               _buildFilterSection(),
+              if (_orders.isEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 50),
+                  child: Text(
+                    "No Data for that particular date!!!",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 17,
+                      color: redColor,
+                    ),
+                  ),
+                ),
+              ],
               if (_isItemWise) ...[
                 Container(
                   width: double.infinity,
@@ -162,7 +201,7 @@ class _HomescreenState extends State<Homescreen> {
                           count: deliveryCounts["delivered"] ?? 0,
                           color: Colors.pink.shade100,
                         ),
-                        const SizedBox(width: 8), // Padding at the end
+                        const SizedBox(width: 8),
                       ],
                     ),
                   ),
@@ -183,8 +222,8 @@ class _HomescreenState extends State<Homescreen> {
     final Map<String, int> counts = {};
 
     for (final item in _itemWise) {
-      final status = item.itemStatus?.trim().toLowerCase();
-      if (status == null || status.isEmpty) continue;
+      final status = item.itemStatus.trim().toLowerCase();
+      if (status.isEmpty) continue;
 
       counts[status] = (counts[status] ?? 0) + 1;
     }
@@ -196,34 +235,34 @@ class _HomescreenState extends State<Homescreen> {
   Widget _buildHeader() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.all(16),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Image.asset("assets/wasla.jpeg", height: 60),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Laundry Management",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF333333),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  "Automate, Track, Deliver Effortlessly",
-                  style: TextStyle(fontSize: 12, color: Color(0xFF666666)),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
+          Image.asset("assets/wasla.png", height: 90, fit: BoxFit.contain),
+          // const SizedBox(width: 16),
+          // const Expanded(
+          //   child: Column(
+          //     crossAxisAlignment: CrossAxisAlignment.start,
+          //     children: [
+          //       Text(
+          //         "Laundry Management",
+          //         style: TextStyle(
+          //           fontSize: 20,
+          //           fontWeight: FontWeight.bold,
+          //           color: Color(0xFF333333),
+          //         ),
+          //         maxLines: 1,
+          //         overflow: TextOverflow.ellipsis,
+          //       ),
+          //       Text(
+          //         "Automate, Track, Deliver Effortlessly",
+          //         style: TextStyle(fontSize: 12, color: Color(0xFF666666)),
+          //         maxLines: 1,
+          //         overflow: TextOverflow.ellipsis,
+          //       ),
+          //     ],
+          //   ),
+          // ),
           IconButton(
             onPressed: () {
               showDialog(
@@ -314,6 +353,7 @@ class _HomescreenState extends State<Homescreen> {
                         _serviceType = "All";
                         _selectedService = "All";
                         _selectedItem = "All";
+                        _selectedCustomer = "All";
                         _customerController.clear();
                         _orderNoController.clear();
                       });
@@ -350,9 +390,30 @@ class _HomescreenState extends State<Homescreen> {
                         (d) => setState(() => _fromDate = d),
                       ),
                       const SizedBox(height: 12),
-                      _buildTextFilter(
-                        "Customer:",
-                        controller: _customerController,
+                      //
+                      _buildDropdownFilter(
+                        "Customer",
+                        _selectedCustomer,
+                        _customerName.isEmpty
+                            ? ["All"]
+                            : [
+                                "All",
+                                ..._customerName.map((e) => e.customerName),
+                              ],
+                        (v) {
+                          setState(() {
+                            _selectedCustomer = v!;
+                            if (v == 'All') {
+                              _selectedCustomerId = null;
+                            } else {
+                              final customer = _customerName.firstWhere(
+                                (c) => c.customerName == v,
+                                orElse: () => _customerName.first,
+                              );
+                              _selectedCustomerId = "${customer.customerId}";
+                            }
+                          });
+                        },
                       ),
                       const SizedBox(height: 12),
                       _buildDropdownFilter(
@@ -385,10 +446,6 @@ class _HomescreenState extends State<Homescreen> {
                         (d) => setState(() => _toDate = d),
                       ),
                       const SizedBox(height: 12),
-                      _buildTextFilter(
-                        "Order No.:",
-                        controller: _orderNoController,
-                      ),
                       const SizedBox(height: 12),
                       _buildDropdownFilter(
                         "Delivery Status:",
@@ -431,7 +488,7 @@ class _HomescreenState extends State<Homescreen> {
 
             /// ITEM-WISE EXTRA FILTERS
             if (_isItemWise) ...[
-              const SizedBox(height: 16),
+              vertGap(16),
               const Divider(),
               const SizedBox(height: 12),
 
@@ -442,22 +499,19 @@ class _HomescreenState extends State<Homescreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildDropdownFilter(
-                          "Category:",
-                          _selectedService,
-                          [
-                            "All",
-                            ..._apiServices.map(
-                              (e) => e['service_name'].toString(),
-                            ),
-                          ],
-                          (v) => setState(() => _selectedService = v!),
-                        ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 25), // Label + Gap offset
                         _buildTypeButton(
                           "Normal",
                           Colors.green,
                           _serviceType == "Normal",
+                        ),
+                        const SizedBox(
+                          height: 30,
+                        ), // Aligns with Category label + gap
+                        _buildTypeButton(
+                          "Express",
+                          Colors.red,
+                          _serviceType == "Express",
                         ),
                       ],
                     ),
@@ -470,20 +524,27 @@ class _HomescreenState extends State<Homescreen> {
                         _buildDropdownFilter(
                           "Item:",
                           _selectedItem,
-                          [
-                            "All",
-                            ..._apiItems.map(
-                              (e) => e['service_item_name'].toString(),
-                            ),
-                          ],
+                          _apiItems.isEmpty
+                              ? ["All"]
+                              : [
+                                  "All",
+                                  ..._apiItems.map((e) => e.serviceItemName),
+                                ],
                           (v) => setState(() => _selectedItem = v!),
                         ),
                         const SizedBox(height: 12),
-                        _buildTypeButton(
-                          "Express",
-                          Colors.red,
-                          _serviceType == "Express",
+                        _buildDropdownFilter(
+                          "Category:",
+                          _selectedService,
+                          _apiServices.isEmpty
+                              ? ["All"]
+                              : [
+                                  "All",
+                                  ..._apiServices.map((e) => e.serviceName),
+                                ],
+                          (v) => setState(() => _selectedService = v!),
                         ),
+                        const SizedBox(height: 12),
                       ],
                     ),
                   ),
@@ -496,49 +557,14 @@ class _HomescreenState extends State<Homescreen> {
     );
   }
 
-  Widget _buildTextFilter(String label, {TextEditingController? controller}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 6),
-        SizedBox(
-          height: 40,
-          child: TextField(
-            controller: controller,
-            style: const TextStyle(fontSize: 13),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 10,
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: Colors.grey.shade400),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: Colors.grey.shade400),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildDropdownFilter(
     String label,
     String value,
     List<String> options,
     Function(String?) onChanged,
   ) {
+    final safeValue = options.contains(value) ? value : options.first;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -557,17 +583,18 @@ class _HomescreenState extends State<Homescreen> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: options.contains(value) ? value : options.first,
+              value: safeValue, // ✅ IMPORTANT
               isExpanded: true,
               icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
               style: const TextStyle(fontSize: 13, color: Colors.black),
               onChanged: onChanged,
-              items: options.map((String option) {
-                return DropdownMenuItem<String>(
-                  value: option,
-                  child: Text(option),
-                );
-              }).toList(),
+              items: options
+                  .toSet() // ✅ avoid duplicate names
+                  .map(
+                    (option) =>
+                        DropdownMenuItem(value: option, child: Text(option)),
+                  )
+                  .toList(),
             ),
           ),
         ),
@@ -626,7 +653,9 @@ class _HomescreenState extends State<Homescreen> {
     return GestureDetector(
       onTap: () => setState(() => _serviceType = label),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        height: 40,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: isActive ? color : Colors.grey.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(20),
@@ -767,7 +796,7 @@ class _HomescreenState extends State<Homescreen> {
                   child: Column(
                     children: [
                       const Text(
-                        "Delivery ",
+                        "Delivery Status",
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -1033,7 +1062,7 @@ class _HomescreenState extends State<Homescreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(

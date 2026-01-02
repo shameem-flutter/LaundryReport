@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:laundry/screens/homescreen.dart';
+import 'package:laundry/screens/licensekey.dart';
+import 'package:laundry/screens/splashscreen.dart';
 
 import 'package:laundry/services/api_endpoints.dart';
 
@@ -15,10 +16,10 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       title: 'Laundry Report',
       debugShowCheckedModeBanner: false,
-      home: Homescreen(),
+      home: SplashScreen(),
     );
   }
 }
