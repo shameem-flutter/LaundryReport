@@ -29,6 +29,20 @@ class ApiService {
     }
   }
 
+  Future<String> fetchSystemCode() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.machineCode);
+      if (response.statusCode == 200) {
+        final data = response.data;
+        return data['system_code'] ?? "";
+      }
+      return "";
+    } catch (e) {
+      print('Error fetching system code: $e');
+      return "";
+    }
+  }
+
   Future<List<ServicesModel>> fetchServices() async {
     try {
       final response = await _dio.get(ApiEndpoints.services);
@@ -142,6 +156,58 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Error fetching item-wise report: $e');
+    }
+  }
+
+  Future<String> postKey(String activationKey) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.activateLicenseKey,
+        data: {"activation_key": activationKey},
+      );
+
+      // Success: 200 or 201
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // You can extract a message from response if the API returns one
+        final String successMessage =
+            response.data['message'] ??
+            response.data.toString() ??
+            "License activated successfully!";
+
+        print(successMessage);
+        return successMessage; // Return success message
+      } else {
+        // Non-2xx status code
+        throw Exception(
+          "Activation failed with status: ${response.statusCode}",
+        );
+      }
+    } on DioException catch (e) {
+      String errorMessage = "Failed to activate license";
+
+      if (e.response != null) {
+        // Server responded with error (400, 401, 422, 500, etc.)
+        final data = e.response?.data;
+        if (data is Map<String, dynamic>) {
+          errorMessage = data['message'] ?? data['detail'] ?? data.toString();
+        } else {
+          errorMessage = data.toString();
+        }
+        errorMessage += " (${e.response?.statusCode})";
+      } else {
+        // No response: network issue, timeout, etc.
+        errorMessage =
+            e.message ?? "Network error. Please check your connection.";
+      }
+
+      print("Activation Error: $errorMessage");
+
+      // Throw with meaningful message so UI can show it
+      throw Exception(errorMessage);
+    } catch (e) {
+      // Unexpected errors
+      print("Unexpected error: $e");
+      throw Exception("An unexpected error occurred");
     }
   }
 }

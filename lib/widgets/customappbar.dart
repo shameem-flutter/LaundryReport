@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:laundry/utilities/colors.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -35,7 +36,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 height: 38,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.teal.withValues(alpha: 0.12),
+                  color: primaryColor,
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -43,7 +44,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    color: Colors.teal,
+                    color: whiteColor,
                     letterSpacing: 0.5,
                   ),
                 ),

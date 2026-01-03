@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:laundry/screens/licensekey.dart';
 import 'package:laundry/screens/splashscreen.dart';
 
 import 'package:laundry/services/api_endpoints.dart';

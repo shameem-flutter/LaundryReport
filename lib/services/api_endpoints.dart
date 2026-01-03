@@ -1,8 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiEndpoints {
-  static String baseUrl =
-      'https://rabbit-titanium-thereby-analysis.trycloudflare.com/';
+  static String baseUrl = '';
   static const String _baseUrlKey = 'api_base_url';
 
   static Future<void> init() async {
@@ -37,11 +36,6 @@ class ApiEndpoints {
   static const String orderReport = 'api/v1/integration/order-report/';
   static const String itemWiseReport = 'api/v1/integration/item-wise-report/';
   static const String checkLicense = 'api/v2/license/check_license_status/';
-
-  // User provided endpoints for reference/future use
-  // static const String login = 'api/v1/accounts/login/';
-  // static const String licenseItems = '/api/v2/license/item/';
-  // static const String salesReport = "api/v1/integration/sale-report/";
-  // static const String customerReport = "api/v1/integration/customer-ledger/";
-  // static const String customerName = "api/v1/integration/customer/";
+  static const String machineCode = 'api/v2/license/get_system_code/';
+  static const String activateLicenseKey = 'api/v2/license/activate_license/';
 }

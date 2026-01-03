@@ -7,6 +7,7 @@ import 'package:laundry/models/orderreport.dart';
 import 'package:laundry/models/item.dart';
 import 'package:laundry/models/services.dart';
 import 'package:laundry/screens/ip_config_dialog.dart';
+import 'package:laundry/screens/licensekey.dart';
 import 'package:laundry/services/api_service.dart';
 import 'package:laundry/utilities/colors.dart';
 import 'package:laundry/utilities/gapfunc.dart';
@@ -26,9 +27,20 @@ class _HomescreenState extends State<Homescreen> {
   DateTime _toDate = DateTime(2025, 12, 24);
   bool _isItemWise = false;
   bool _isLoading = false;
+  bool _hasFetched = false;
   final ApiService _apiService = ApiService();
   List<OrderReportModel> _orders = [];
   List<ItemWiseorderreportModel> _itemWise = [];
+
+  List<ItemWiseorderreportModel> get _filteredItems {
+    if (_serviceType == "All") return _itemWise;
+    return _itemWise
+        .where(
+          (item) =>
+              item.serviceType.toLowerCase() == _serviceType.toLowerCase(),
+        )
+        .toList();
+  }
 
   final TextEditingController _customerController = TextEditingController();
   final TextEditingController _orderNoController = TextEditingController();
@@ -82,8 +94,45 @@ class _HomescreenState extends State<Homescreen> {
     }
   }
 
+  Future<void> applyFilterWithlicense() async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final bool isActivated = await _apiService.checkLicenseStatus();
+      if (!mounted) return;
+      if (isActivated) {
+        await _fetchData();
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => ActivationRequiredScreen()),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("License Expired!!!"),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: redColor,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _hasFetched = true;
+    });
     try {
       final startDate = DateFormat('yyyy-MM-dd').format(_fromDate);
       final endDate = DateFormat('yyyy-MM-dd').format(_toDate);
@@ -120,7 +169,7 @@ class _HomescreenState extends State<Homescreen> {
           customerId: _selectedCustomer == "All" ? null : _selectedCustomerId,
           serviceName: serviceId,
           itemName: itemId,
-          serviceType: _serviceType,
+          serviceType: "All",
         );
         setState(() => _itemWise = results);
       } else {
@@ -158,20 +207,27 @@ class _HomescreenState extends State<Homescreen> {
               _buildHeader(),
               _buildTitleBanner(),
               _buildFilterSection(),
-              if (_orders.isEmpty) ...[
+              if (!_isLoading &&
+                  _hasFetched &&
+                  (_isItemWise ? _filteredItems.isEmpty : _orders.isEmpty)) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 50),
-                  child: Text(
-                    "No Data for that particular date!!!",
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 17,
-                      color: redColor,
+                  child: Center(
+                    child: Text(
+                      "No Data for that particular date!!!",
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 17,
+                        color: blueColor,
+                      ),
                     ),
                   ),
                 ),
               ],
-              if (_isItemWise) ...[
+              if (_isItemWise &&
+                  !_isLoading &&
+                  _hasFetched &&
+                  _filteredItems.isNotEmpty) ...[
                 Container(
                   width: double.infinity,
                   color: Colors.brown,
@@ -189,17 +245,17 @@ class _HomescreenState extends State<Homescreen> {
                         statusChip(
                           label: "Processing",
                           count: deliveryCounts['processing'] ?? 0,
-                          color: orangeShade,
+                          color: whiteColor,
                         ),
                         statusChip(
                           label: "Ready for Delivery",
                           count: deliveryCounts['ready for delivery'] ?? 0,
-                          color: greenShade,
+                          color: whiteColor,
                         ),
                         statusChip(
                           label: "Delivered",
                           count: deliveryCounts["delivered"] ?? 0,
-                          color: Colors.pink.shade100,
+                          color: whiteColor,
                         ),
                         const SizedBox(width: 8),
                       ],
@@ -221,7 +277,7 @@ class _HomescreenState extends State<Homescreen> {
   Map<String, int> buildDeliveryStatusCount() {
     final Map<String, int> counts = {};
 
-    for (final item in _itemWise) {
+    for (final item in _filteredItems) {
       final status = item.itemStatus.trim().toLowerCase();
       if (status.isEmpty) continue;
 
@@ -231,7 +287,7 @@ class _HomescreenState extends State<Homescreen> {
     return counts;
   }
 
-  int getTotalCount() => _itemWise.map((e) => e.itemStatus).length;
+  int getTotalCount() => _filteredItems.map((e) => e.itemStatus).length;
   Widget _buildHeader() {
     return Container(
       color: Colors.white,
@@ -239,30 +295,6 @@ class _HomescreenState extends State<Homescreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Image.asset("assets/wasla.png", height: 90, fit: BoxFit.contain),
-          // const SizedBox(width: 16),
-          // const Expanded(
-          //   child: Column(
-          //     crossAxisAlignment: CrossAxisAlignment.start,
-          //     children: [
-          //       Text(
-          //         "Laundry Management",
-          //         style: TextStyle(
-          //           fontSize: 20,
-          //           fontWeight: FontWeight.bold,
-          //           color: Color(0xFF333333),
-          //         ),
-          //         maxLines: 1,
-          //         overflow: TextOverflow.ellipsis,
-          //       ),
-          //       Text(
-          //         "Automate, Track, Deliver Effortlessly",
-          //         style: TextStyle(fontSize: 12, color: Color(0xFF666666)),
-          //         maxLines: 1,
-          //         overflow: TextOverflow.ellipsis,
-          //       ),
-          //     ],
-          //   ),
-          // ),
           IconButton(
             onPressed: () {
               showDialog(
@@ -275,7 +307,7 @@ class _HomescreenState extends State<Homescreen> {
               height: 38,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.teal.withValues(alpha: 0.12),
+                color: primaryColor,
               ),
               alignment: Alignment.center,
               child: Text(
@@ -283,7 +315,7 @@ class _HomescreenState extends State<Homescreen> {
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
-                  color: Colors.teal,
+                  color: whiteColor,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -356,6 +388,7 @@ class _HomescreenState extends State<Homescreen> {
                         _selectedCustomer = "All";
                         _customerController.clear();
                         _orderNoController.clear();
+                        _hasFetched = false;
                       });
                     },
                     icon: const Icon(Icons.refresh, size: 18),
@@ -467,7 +500,10 @@ class _HomescreenState extends State<Homescreen> {
                         children: [
                           Switch(
                             value: _isItemWise,
-                            onChanged: (v) => setState(() => _isItemWise = v),
+                            onChanged: (v) => setState(() {
+                              _isItemWise = v;
+                              _hasFetched = false;
+                            }),
                             activeColor: const Color(0xFF0D47A1),
                           ),
                           horiGap(6),
@@ -651,7 +687,15 @@ class _HomescreenState extends State<Homescreen> {
 
   Widget _buildTypeButton(String label, Color color, bool isActive) {
     return GestureDetector(
-      onTap: () => setState(() => _serviceType = label),
+      onTap: () {
+        setState(() {
+          if (_serviceType == label) {
+            _serviceType = "All";
+          } else {
+            _serviceType = label;
+          }
+        });
+      },
       child: Container(
         height: 40,
         alignment: Alignment.center,
@@ -888,11 +932,8 @@ class _HomescreenState extends State<Homescreen> {
   }
 
   Widget _buildItemWiseTable() {
-    if (_itemWise.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(32),
-        child: Center(child: Text("No item-wise data found")),
-      );
+    if (_filteredItems.isEmpty) {
+      return const SizedBox.shrink();
     }
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -928,7 +969,7 @@ class _HomescreenState extends State<Homescreen> {
             _buildColumn("Order Status"),
             _buildColumn("Delivery Status"),
           ],
-          rows: _itemWise.map((item) {
+          rows: _filteredItems.map((item) {
             return DataRow(
               cells: [
                 _buildDataCell(Text("${item.orderNo}")),
