@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:laundry/screens/homescreen.dart';
+
+import 'package:laundry/screens/licensekey.dart';
 import 'package:laundry/services/api_endpoints.dart';
 import 'package:laundry/services/api_service.dart';
-import 'package:laundry/utilities/colors.dart';
 
 class IpConfigDialog extends StatefulWidget {
   const IpConfigDialog({super.key});
@@ -120,6 +120,7 @@ class _IpConfigDialogState extends State<IpConfigDialog> {
               style: GoogleFonts.inter(fontSize: 16, color: Colors.black87),
             ),
             const SizedBox(height: 32),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -139,44 +140,42 @@ class _IpConfigDialogState extends State<IpConfigDialog> {
                       ? null
                       : () async {
                           if (_hostController.text.isEmpty) return;
-                          setState(() {
-                            _isLoading = true;
-                          });
+
+                          setState(() => _isLoading = true);
+
                           await ApiEndpoints.updateBaseUrl(
                             _selectedProtocol,
                             _hostController.text.trim(),
                           );
+
                           final bool isActivated = await _apiService
                               .checkLicenseStatus();
+
                           if (!context.mounted) return;
+                          setState(() {
+                            _isLoading = false;
+                          });
+
+                          final parentContext = context;
+                          Navigator.of(context).pop();
 
                           if (isActivated) {
-                            Navigator.of(context).pop();
+                            LicenseState.isVerified = true;
+                          } else {
                             Navigator.of(
-                              context,
+                              parentContext,
                               rootNavigator: true,
                             ).pushReplacement(
                               MaterialPageRoute(
-                                builder: (context) => Homescreen(),
+                                builder: (context) =>
+                                    ActivationRequiredScreen(),
                               ),
                             );
-                          } else {
-                            setState(() {
-                              _isLoading = false;
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  "License is not activated for this server",
-                                ),
-                                behavior: SnackBarBehavior.floating,
-                                backgroundColor: redColor,
-                              ),
-                            );
+                            return;
                           }
                         },
                   child: _isLoading
-                      ? SizedBox(
+                      ? const SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
@@ -232,4 +231,8 @@ class _IpConfigDialogState extends State<IpConfigDialog> {
       ),
     );
   }
+}
+
+class LicenseState {
+  static bool isVerified = false;
 }
