@@ -241,102 +241,120 @@ class _HomescreenState extends State<Homescreen> {
     final deliveryCounts = buildDeliveryStatusCount();
     return Scaffold(
       backgroundColor: const Color(0xFFF3F3F3),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              const HomeHeader(),
-              const TitleBanner(),
-              FilterSection(
-                isLoading: _isLoading,
-                onApplyFilter: _fetchData,
-                onReset: _resetFilters,
-                fromDate: _fromDate,
-                toDate: _toDate,
-                onFromDateChanged: (d) => setState(() => _fromDate = d),
-                onToDateChanged: (d) => setState(() => _toDate = d),
-                selectedCustomer: _selectedCustomer,
-                customerNames: _customerName,
-                onCustomerChanged: (v) {
-                  setState(() {
-                    _selectedCustomer = v!;
-                    if (v == 'All') {
-                      _selectedCustomerId = null;
-                    } else {
-                      final customer = _customerName.firstWhere(
-                        (c) => c.customerName == v,
-                        orElse: () => _customerName.first,
-                      );
-                      _selectedCustomerId = "${customer.customerId}";
-                    }
-                  });
-                },
-                orderStatus: _orderStatus,
-                paymentStatus: _paymentStatus,
-                deliveryStatus: _deliveryStatus,
-                statusOptions: _statusOptions,
-                onOrderStatusChanged: (v) => setState(() => _orderStatus = v!),
-                onPaymentStatusChanged: (v) =>
-                    setState(() => _paymentStatus = v!),
-                onDeliveryStatusChanged: (v) =>
-                    setState(() => _deliveryStatus = v!),
-                isItemWise: _isItemWise,
-                onIsItemWiseChanged: (v) {
-                  setState(() {
-                    _isItemWise = v;
-                    _hasFetched = false;
-                  });
-                },
-                serviceType: _serviceType,
-                onTapNormal: () => setState(() {
-                  _serviceType = _serviceType == "Normal" ? "All" : "Normal";
-                }),
-                onTapExpress: () => setState(() {
-                  _serviceType = _serviceType == "Express" ? "All" : "Express";
-                }),
-                selectedItem: _selectedItem,
-                apiItems: _apiItems,
-                onItemChanged: (v) => setState(() => _selectedItem = v!),
-                selectedService: _selectedService,
-                apiServices: _apiServices,
-                onServiceChanged: (v) => setState(() => _selectedService = v!),
-              ),
-              if (!_isLoading &&
-                  _hasFetched &&
-                  (_isItemWise ? _filteredItems.isEmpty : _orders.isEmpty)) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 50),
-                  child: Center(
-                    child: Text(
-                      "No Data for that particular date!!!",
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 17,
-                        color: blueColor,
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          FocusManager.instance.primaryFocus?.unfocus();
+        },
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                const HomeHeader(),
+                const TitleBanner(),
+                FilterSection(
+                  isLoading: _isLoading,
+                  onApplyFilter: _fetchData,
+                  onReset: _resetFilters,
+                  fromDate: _fromDate,
+                  toDate: _toDate,
+                  onFromDateChanged: (d) => setState(() => _fromDate = d),
+                  onToDateChanged: (d) => setState(() => _toDate = d),
+                  selectedCustomer: _selectedCustomer,
+                  customerNames: _customerName,
+                  onCustomerChanged: (v) {
+                    setState(() {
+                      _selectedCustomer = v ?? "";
+                      if (_selectedCustomer == 'All' ||
+                          _selectedCustomer.isEmpty) {
+                        _selectedCustomerId = null;
+                      } else {
+                        try {
+                          final customer = _customerName.firstWhere(
+                            (c) =>
+                                c.customerName.toLowerCase() ==
+                                _selectedCustomer.toLowerCase(),
+                          );
+                          _selectedCustomerId = "${customer.customerId}";
+                        } catch (e) {
+                          _selectedCustomerId = "-1";
+                        }
+                      }
+                    });
+                  },
+                  orderStatus: _orderStatus,
+                  paymentStatus: _paymentStatus,
+                  deliveryStatus: _deliveryStatus,
+                  statusOptions: _statusOptions,
+                  onOrderStatusChanged: (v) =>
+                      setState(() => _orderStatus = v!),
+                  onPaymentStatusChanged: (v) =>
+                      setState(() => _paymentStatus = v!),
+                  onDeliveryStatusChanged: (v) =>
+                      setState(() => _deliveryStatus = v!),
+                  isItemWise: _isItemWise,
+                  onIsItemWiseChanged: (v) {
+                    setState(() {
+                      _isItemWise = v;
+                      _hasFetched = false;
+                    });
+                  },
+                  serviceType: _serviceType,
+                  onTapNormal: () => setState(() {
+                    _serviceType = _serviceType == "Normal" ? "All" : "Normal";
+                  }),
+                  onTapExpress: () => setState(() {
+                    _serviceType = _serviceType == "Express"
+                        ? "All"
+                        : "Express";
+                  }),
+                  selectedItem: _selectedItem,
+                  apiItems: _apiItems,
+                  onItemChanged: (v) => setState(() => _selectedItem = v!),
+                  selectedService: _selectedService,
+                  apiServices: _apiServices,
+                  onServiceChanged: (v) =>
+                      setState(() => _selectedService = v!),
+                ),
+                if (!_isLoading &&
+                    _hasFetched &&
+                    (_isItemWise
+                        ? _filteredItems.isEmpty
+                        : _orders.isEmpty)) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 50),
+                    child: Center(
+                      child: Text(
+                        "No Data for that particular date!!!",
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 17,
+                          color: blueColor,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
+                if (_isItemWise &&
+                    !_isLoading &&
+                    _hasFetched &&
+                    _filteredItems.isNotEmpty)
+                  SummaryRow(
+                    totalCount: getTotalCount(),
+                    deliveryCounts: deliveryCounts,
+                  ),
+                if (_isLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_isItemWise)
+                  ItemsTable(items: _filteredItems)
+                else
+                  OrderList(orders: _orders),
+                vertGap(10),
               ],
-              if (_isItemWise &&
-                  !_isLoading &&
-                  _hasFetched &&
-                  _filteredItems.isNotEmpty)
-                SummaryRow(
-                  totalCount: getTotalCount(),
-                  deliveryCounts: deliveryCounts,
-                ),
-              if (_isLoading)
-                const Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_isItemWise)
-                ItemsTable(items: _filteredItems)
-              else
-                OrderList(orders: _orders),
-              vertGap(10),
-            ],
+            ),
           ),
         ),
       ),

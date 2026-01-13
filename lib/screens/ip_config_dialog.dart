@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import 'package:laundry/screens/homescreen.dart';
 import 'package:laundry/screens/licensekey.dart';
 import 'package:laundry/services/api_endpoints.dart';
 import 'package:laundry/services/api_service.dart';
@@ -66,7 +66,7 @@ class _IpConfigDialogState extends State<IpConfigDialog> {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -140,6 +140,7 @@ class _IpConfigDialogState extends State<IpConfigDialog> {
                       ? null
                       : () async {
                           if (_hostController.text.isEmpty) return;
+                          bool wasAlreadyVerified = LicenseState.isVerified;
 
                           setState(() => _isLoading = true);
 
@@ -157,11 +158,21 @@ class _IpConfigDialogState extends State<IpConfigDialog> {
                           });
 
                           final parentContext = context;
+
+                          // 1. Close the dialog first
                           Navigator.of(context).pop();
 
                           if (isActivated) {
                             LicenseState.isVerified = true;
+                            if (!wasAlreadyVerified) {
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (context) => Homescreen(),
+                                ),
+                              );
+                            }
                           } else {
+                            LicenseState.isVerified;
                             Navigator.of(
                               parentContext,
                               rootNavigator: true,
@@ -213,7 +224,7 @@ class _IpConfigDialogState extends State<IpConfigDialog> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),

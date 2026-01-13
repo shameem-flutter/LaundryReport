@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:laundry/utilities/colors.dart';
 
 class TitleBanner extends StatelessWidget {
   const TitleBanner({super.key});
@@ -7,7 +8,7 @@ class TitleBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: const Color(0xFF34495E),
+      color: primaryColor,
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       child: const Text(
         "Order List",

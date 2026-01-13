@@ -6,4 +6,5 @@ Color orangeShade = Colors.orange.shade300;
 Color greenShade = Colors.lightGreenAccent.shade200;
 Color redColor = Colors.redAccent;
 Color blueColor = Colors.blue;
-Color primaryColor = Color(0xFF34495E);
+const Color primaryColor = Color(0xFF34495E);
+const Color greyColor = Colors.grey;
