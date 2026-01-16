@@ -10,8 +10,8 @@ class ApiService {
   Dio get _dio => Dio(
     BaseOptions(
       baseUrl: ApiEndpoints.baseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
     ),
   );
 
@@ -89,6 +89,7 @@ class ApiService {
     required String paymentStatus,
     required String deliveryStatus,
     String? customerId,
+    String? orderNo,
   }) async {
     try {
       final response = await _dio.get(
@@ -99,6 +100,7 @@ class ApiService {
           'order_status': orderStatus,
           'payment_status': paymentStatus,
           'delivery_status': deliveryStatus,
+          if (orderNo != null && orderNo.isNotEmpty) 'order_no': orderNo,
           if (customerId != null &&
               customerId.isNotEmpty &&
               customerId != "All")
@@ -124,6 +126,7 @@ class ApiService {
     required String paymentStatus,
     required String deliveryStatus,
     String? customerId,
+    String? orderNo,
     String? serviceName,
     String? itemName,
     String? serviceType,
@@ -137,6 +140,7 @@ class ApiService {
           'order_status': orderStatus,
           'payment_status': paymentStatus,
           'delivery_status': deliveryStatus,
+          if (orderNo != null && orderNo.isNotEmpty) 'order_no': orderNo,
           if (customerId != null && customerId != "All")
             'customer_id': customerId,
           if (serviceName != null) 'service_id': serviceName,
