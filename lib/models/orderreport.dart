@@ -22,8 +22,8 @@ class OrderReportModel {
   String paymentStatus;
   String deliveryStatus;
   String orderStatus;
-  int totalDiscount;
-  int grandTotal;
+  double totalDiscount;
+  double grandTotal;
   List<OrderItem> orderItems;
 
   OrderReportModel({
@@ -52,8 +52,8 @@ class OrderReportModel {
         paymentStatus: json["payment_status"] ?? '',
         deliveryStatus: json["delivery_status"] ?? '',
         orderStatus: json["order_status"] ?? '',
-        totalDiscount: _toInt(json["total_discount"]),
-        grandTotal: _toInt(json["grand_total"]),
+        totalDiscount: _toDouble(json["total_discount"]),
+        grandTotal: _toDouble(json["grand_total"]),
         orderItems: List<OrderItem>.from(
           (json["order_items"] ?? []).map((x) => OrderItem.fromJson(x)),
         ),
@@ -79,10 +79,10 @@ class OrderItem {
   String serviceNameX;
   String serviceType;
   String serviceItemNameX;
-  int unitRate;
-  int qty;
-  int discount;
-  int lineTotal;
+  double unitRate;
+  double qty;
+  double discount;
+  double lineTotal;
   String itemStatus;
   String extraNote;
   DateTime? itemDeliveryDate; // Made nullable
@@ -106,10 +106,10 @@ class OrderItem {
     serviceNameX: json["service_name_x"] ?? '',
     serviceType: json["service_type"] ?? '',
     serviceItemNameX: json["service_item_name_x"] ?? '',
-    unitRate: _toInt(json["unit_rate"]),
-    qty: _toInt(json["qty"]),
-    discount: _toInt(json["discount"]),
-    lineTotal: _toInt(json["line_total"]),
+    unitRate: _toDouble(json["unit_rate"]),
+    qty: _toDouble(json["qty"]),
+    discount: _toDouble(json["discount"]),
+    lineTotal: _toDouble(json["line_total"]),
     itemStatus: json["item_status"] ?? '',
     extraNote: json["extra_note"] ?? '',
     itemDeliveryDate: json["item_delivery_date"] != null
@@ -138,4 +138,11 @@ int _toInt(dynamic value) {
   if (value is int) return value;
   if (value is double) return value.toInt();
   return int.tryParse(value.toString()) ?? 0;
+}
+
+double _toDouble(dynamic value) {
+  if (value == null) return 0.0;
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  return double.tryParse(value.toString()) ?? 0.0;
 }
