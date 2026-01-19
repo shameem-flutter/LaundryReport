@@ -804,7 +804,7 @@ class _HomescreenState extends State<Homescreen> {
                       _buildStatusBadge(
                         status: order.paymentStatus,
                         color: _getStatusColor(order.paymentStatus),
-                        isEditable: false,
+                        onStatusChanged: null,
                       ),
                     ],
                   ),
@@ -825,7 +825,11 @@ class _HomescreenState extends State<Homescreen> {
                       _buildStatusBadge(
                         status: order.orderStatus,
                         color: _getStatusColor(order.orderStatus),
-                        isEditable: true,
+                        onStatusChanged: (newStatus) {
+                          _showConfirmationDialog(context, newStatus, () {
+                            _updateOrderStatus("${order.orderId}", newStatus);
+                          });
+                        },
                       ),
                     ],
                   ),
@@ -846,7 +850,14 @@ class _HomescreenState extends State<Homescreen> {
                       _buildStatusBadge(
                         status: order.deliveryStatus,
                         color: _getStatusColor(order.deliveryStatus),
-                        isEditable: true,
+                        onStatusChanged: (newStatus) {
+                          _showConfirmationDialog(context, newStatus, () {
+                            _updateDeliveryStatus(
+                              orderId: "${order.orderId}",
+                              deliveryStage: newStatus,
+                            );
+                          });
+                        },
                         menuItems: [
                           "Processing",
                           "Ready for Delivery",
@@ -1192,8 +1203,7 @@ class _HomescreenState extends State<Homescreen> {
   Widget _buildStatusBadge({
     required String status,
     required Color color,
-    bool isEditable = false,
-    // New parameter: A list of strings for the dropdown options
+    Function(String)? onStatusChanged,
     List<String> menuItems = const ["Finished", "Pending", "Cancelled"],
   }) {
     Widget badgeContainer = Container(
@@ -1215,15 +1225,14 @@ class _HomescreenState extends State<Homescreen> {
 
     return Align(
       alignment: Alignment.center,
-      child: isEditable
+      child: onStatusChanged != null
           ? PopupMenuButton<String>(
               offset: const Offset(0, 40),
-              // Map the passed list of strings to PopupMenuItems
               itemBuilder: (context) => menuItems.map((String value) {
                 return PopupMenuItem<String>(value: value, child: Text(value));
               }).toList(),
               onSelected: (String selectedValue) {
-                _showConfirmationDialog(context, selectedValue);
+                onStatusChanged(selectedValue);
               },
               child: badgeContainer,
             )
@@ -1301,7 +1310,7 @@ class _HomescreenState extends State<Homescreen> {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case "paid":
-        return Colors.green;
+        return Colors.green.shade800;
       case "unpaid":
         return Colors.red;
       case "finished":
@@ -1311,7 +1320,7 @@ class _HomescreenState extends State<Homescreen> {
       case "delivered":
         return Colors.green.shade800;
       case "cancelled":
-        return Colors.grey;
+        return redColor;
       default:
         return Colors.grey;
     }
@@ -1344,9 +1353,39 @@ class _HomescreenState extends State<Homescreen> {
   String _formatDate(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
   String _formatTime(DateTime d) => DateFormat('h:mm a').format(d);
 
+  Future<void> _updateOrderStatus(String orderId, String newStatus) async {
+    setState(() => _isLoading = true);
+    try {
+      await _apiService.updateOrderStatus(orderId: orderId, status: newStatus);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Order status updated successfully"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        await _fetchData(); // Refresh list
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   Future<void> _showConfirmationDialog(
     BuildContext context,
     String newStatus,
+    VoidCallback onConfirm,
   ) async {
     return showDialog<void>(
       context: context,
@@ -1368,7 +1407,7 @@ class _HomescreenState extends State<Homescreen> {
               child: const Text('Yes'),
               onPressed: () {
                 Navigator.of(context).pop();
-                // print("Proceeding to update status to: $newStatus");
+                onConfirm();
               },
             ),
           ],
@@ -1376,4 +1415,44 @@ class _HomescreenState extends State<Homescreen> {
       },
     );
   }
-} // End of _HomescreenState
+
+  Future<void> _updateDeliveryStatus({
+    required String orderId,
+    required String deliveryStage,
+  }) async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      await _apiService.updateDeliveryStatus(
+        orderId: orderId,
+        deliveryStage: deliveryStage,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Updated DeliveryStatus"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        await _fetchData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to Updated DeliveryStatus"),
+            backgroundColor: redColor,
+          ),
+        );
+      }
+      throw Exception("Failed to Update delivery status");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+}

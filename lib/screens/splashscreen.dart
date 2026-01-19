@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:laundry/screens/homescreen.dart';
-import 'package:laundry/screens/licensekey.dart'; // Assuming this is ActivationRequiredScreen
+import 'package:laundry/screens/licensekey.dart';
+import 'package:laundry/screens/mainscreen.dart';
 import 'package:laundry/services/api_service.dart';
 import 'package:laundry/utilities/colors.dart';
 
@@ -26,7 +26,6 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // Logo Animation
     _logoController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -81,7 +80,7 @@ class _SplashScreenState extends State<SplashScreen>
         pageBuilder: (_, animation, _) => FadeTransition(
           opacity: animation,
           child: isActivated
-              ? const Homescreen()
+              ? const Mainscreen()
               : const ActivationRequiredScreen(),
         ),
       ),

@@ -90,6 +90,7 @@ class ApiService {
     required String deliveryStatus,
     String? customerId,
     String? orderNo,
+    String? orderId, // 1. Added the optional parameter here
   }) async {
     try {
       final response = await _dio.get(
@@ -100,7 +101,9 @@ class ApiService {
           'order_status': orderStatus,
           'payment_status': paymentStatus,
           'delivery_status': deliveryStatus,
+          // 2. Added logic to include it in the API request
           if (orderNo != null && orderNo.isNotEmpty) 'order_no': orderNo,
+          if (orderId != null && orderId.isNotEmpty) 'order_id': orderId,
           if (customerId != null &&
               customerId.isNotEmpty &&
               customerId != "All")
@@ -212,6 +215,50 @@ class ApiService {
       // Unexpected errors
       print("Unexpected error: $e");
       throw Exception("An unexpected error occurred");
+    }
+  }
+
+  Future<void> updateOrderStatus({
+    required String orderId,
+    required String status,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.orderUpdate,
+        data: {'order_id': orderId, 'order_status': status},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('Order status updated successfully');
+        return;
+      } else {
+        throw Exception(
+          'Failed to update order status: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Error updating order status: $e');
+    }
+  }
+
+  Future<void> updateDeliveryStatus({
+    required String orderId,
+    required String deliveryStage,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.deliveryUpdate,
+        data: {"order_id": orderId, "delivery_stage": deliveryStage},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return;
+      } else {
+        throw Exception(
+          "Failed to Update delivery status:${response.statusCode}",
+        );
+      }
+    } catch (e) {
+      throw Exception("Error updating order status: $e");
     }
   }
 }

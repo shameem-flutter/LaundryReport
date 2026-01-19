@@ -38,4 +38,7 @@ class ApiEndpoints {
   static const String checkLicense = 'api/v2/license/check_license_status/';
   static const String machineCode = 'api/v2/license/get_system_code/';
   static const String activateLicenseKey = 'api/v2/license/activate_license/';
+  static const String orderUpdate = 'api/v1/integration/update-order-status/';
+  static const String deliveryUpdate =
+      'api/v1/integration/update-delivery-status/';
 }
