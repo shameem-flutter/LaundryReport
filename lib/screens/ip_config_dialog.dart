@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:laundry/screens/homescreen.dart';
 import 'package:laundry/screens/licensekey.dart';
+import 'package:laundry/screens/mainscreen.dart';
 import 'package:laundry/services/api_endpoints.dart';
 import 'package:laundry/services/api_service.dart';
 
@@ -167,7 +167,7 @@ class _IpConfigDialogState extends State<IpConfigDialog> {
                             if (!wasAlreadyVerified) {
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
-                                  builder: (context) => Homescreen(),
+                                  builder: (context) => Mainscreen(),
                                 ),
                               );
                             }

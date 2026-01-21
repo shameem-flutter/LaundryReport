@@ -2,6 +2,7 @@
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:laundry/models/customer.dart';
+import 'package:laundry/models/deliveryboy.dart';
 import 'package:laundry/models/itemwise.dart';
 import 'package:laundry/models/orderreport.dart';
 import 'package:laundry/models/item.dart';
@@ -26,8 +27,8 @@ class _HomescreenState extends State<Homescreen> {
   String _orderStatus = "All";
   String _paymentStatus = "All";
   String _deliveryStatus = "All";
-  DateTime _fromDate = DateTime(2025, 12, 24);
-  DateTime _toDate = DateTime(2025, 12, 24);
+  DateTime _fromDate = DateTime.now().subtract(Duration(days: 14));
+  DateTime _toDate = DateTime.now();
   bool _isItemWise = false;
   bool _isLoading = false;
   bool _hasFetched = false;
@@ -66,6 +67,7 @@ class _HomescreenState extends State<Homescreen> {
   List<ServicesModel> _apiServices = [];
   List<ItemModel> _apiItems = [];
   List<CustomerModel> _customerName = [];
+  List<DeliveryboyModel> _deliveryBoys = [];
 
   @override
   void initState() {
@@ -77,11 +79,13 @@ class _HomescreenState extends State<Homescreen> {
     final services = await _apiService.fetchServices();
     final items = await _apiService.fetchItems();
     final custDetails = await _apiService.fetchCustName();
+    final deliveryBoys = await _apiService.deliveryBoy();
     if (!mounted) return;
     setState(() {
       _apiServices = services;
       _apiItems = items;
       _customerName = custDetails;
+      _deliveryBoys = deliveryBoys;
     });
 
     if (_selectedService != "All" &&
@@ -851,12 +855,24 @@ class _HomescreenState extends State<Homescreen> {
                         status: order.deliveryStatus,
                         color: _getStatusColor(order.deliveryStatus),
                         onStatusChanged: (newStatus) {
-                          _showConfirmationDialog(context, newStatus, () {
-                            _updateDeliveryStatus(
-                              orderId: "${order.orderId}",
-                              deliveryStage: newStatus,
-                            );
-                          });
+                          if (newStatus == "Delivered") {
+                            _showDeliveryBoySelectionDialog(context, (
+                              deliveryBoy,
+                            ) {
+                              _updateDeliveryStatus(
+                                orderId: "${order.orderId}",
+                                deliveryStage: newStatus,
+                                deliveredBy: deliveryBoy.userName,
+                              );
+                            });
+                          } else {
+                            _showConfirmationDialog(context, newStatus, () {
+                              _updateDeliveryStatus(
+                                orderId: "${order.orderId}",
+                                deliveryStage: newStatus,
+                              );
+                            });
+                          }
                         },
                         menuItems: [
                           "Processing",
@@ -1419,6 +1435,7 @@ class _HomescreenState extends State<Homescreen> {
   Future<void> _updateDeliveryStatus({
     required String orderId,
     required String deliveryStage,
+    String? deliveredBy,
   }) async {
     setState(() {
       _isLoading = true;
@@ -1427,10 +1444,11 @@ class _HomescreenState extends State<Homescreen> {
       await _apiService.updateDeliveryStatus(
         orderId: orderId,
         deliveryStage: deliveryStage,
+        deliveredBy: deliveredBy,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text("Updated DeliveryStatus"),
             backgroundColor: Colors.green,
           ),
@@ -1446,12 +1464,75 @@ class _HomescreenState extends State<Homescreen> {
           ),
         );
       }
-      throw Exception("Failed to Update delivery status");
     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  void _showDeliveryBoySelectionDialog(
+    BuildContext context,
+    Function(DeliveryboyModel) onSelected,
+  ) {
+    if (_deliveryBoys.isEmpty) {
+      _fetchDeliveryBoysAndShow(context, onSelected);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Select Delivery Boy"),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _deliveryBoys.length,
+              itemBuilder: (context, index) {
+                final boy = _deliveryBoys[index];
+                return ListTile(
+                  leading: const Icon(Icons.person),
+                  title: Text(boy.userName),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onSelected(boy);
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _fetchDeliveryBoysAndShow(
+    BuildContext context,
+    Function(DeliveryboyModel) onSelected,
+  ) async {
+    final boys = await _apiService.deliveryBoy();
+    if (!mounted) return;
+
+    setState(() {
+      _deliveryBoys = boys;
+    });
+    if (boys.isNotEmpty) {
+      if (context.mounted) _showDeliveryBoySelectionDialog(context, onSelected);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("No delivery boys found")));
       }
     }
   }

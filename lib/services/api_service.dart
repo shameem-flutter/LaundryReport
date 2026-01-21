@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:laundry/models/customer.dart';
+import 'package:laundry/models/customerbased/customer_details.dart';
+import 'package:laundry/models/deliveryboy.dart';
 import 'package:laundry/models/itemwise.dart';
 import 'package:laundry/models/orderreport.dart';
 import 'package:laundry/models/item.dart';
@@ -110,7 +112,7 @@ class ApiService {
             'customer_id': customerId,
         },
       );
-      print('🔍 API URL: ${response.realUri}');
+      //   print('🔍 API URL: ${response.realUri}');
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
         return data.map((json) => OrderReportModel.fromJson(json)).toList();
@@ -244,11 +246,16 @@ class ApiService {
   Future<void> updateDeliveryStatus({
     required String orderId,
     required String deliveryStage,
+    String? deliveredBy,
   }) async {
     try {
       final response = await _dio.post(
         ApiEndpoints.deliveryUpdate,
-        data: {"order_id": orderId, "delivery_stage": deliveryStage},
+        data: {
+          "order_id": orderId,
+          "delivery_stage": deliveryStage,
+          "delivered_by": deliveredBy,
+        },
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         return;
@@ -259,6 +266,34 @@ class ApiService {
       }
     } catch (e) {
       throw Exception("Error updating order status: $e");
+    }
+  }
+
+  Future<List<DeliveryboyModel>> deliveryBoy() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.deliveryBoy);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data;
+        return data.map((json) => DeliveryboyModel.fromJson(json)).toList();
+      } else {
+        throw Exception("Failed to get delivery boy data ");
+      }
+    } catch (e) {
+      throw Exception("error in getting data (delivery boy)$e");
+    }
+  }
+
+  Future<List<CustomerListModel>> customerDetails() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.customerDetails);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final List<dynamic> data = response.data;
+        return data.map((json) => CustomerListModel.fromJson(json)).toList();
+      } else {
+        throw Exception("failed to fetch customer details");
+      }
+    } catch (e) {
+      throw Exception("error fetching customer details:$e");
     }
   }
 }

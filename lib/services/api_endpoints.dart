@@ -41,4 +41,6 @@ class ApiEndpoints {
   static const String orderUpdate = 'api/v1/integration/update-order-status/';
   static const String deliveryUpdate =
       'api/v1/integration/update-delivery-status/';
+  static const String deliveryBoy = 'api/v1/integration/delivered-by/';
+  static const String customerDetails = 'api/v1/integration/customer/';
 }
