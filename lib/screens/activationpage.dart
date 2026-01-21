@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:laundry/screens/homescreen.dart';
+import 'package:laundry/screens/mainscreen.dart';
 import 'package:laundry/services/api_service.dart';
 import 'package:laundry/utilities/colors.dart';
 
@@ -94,7 +94,7 @@ class _ActivationInstructionsScreenState
           PageRouteBuilder(
             transitionDuration: Duration(milliseconds: 300),
             pageBuilder: (_, animation, _) =>
-                FadeTransition(opacity: animation, child: Homescreen()),
+                FadeTransition(opacity: animation, child: Mainscreen()),
           ),
         );
       } else {
@@ -150,9 +150,7 @@ class _ActivationInstructionsScreenState
             return SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: IntrinsicHeight(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
