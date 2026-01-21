@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:laundry/screens/customer_outstanding.dart';
+import 'package:laundry/screens/customer_screen.dart';
 import 'package:laundry/screens/customerledgerscreen.dart';
 import 'package:laundry/screens/homescreen.dart';
 import 'package:laundry/screens/homescreen_widgets/home_header.dart';
+import 'package:laundry/utilities/colors.dart';
+import 'package:laundry/utilities/gapfunc.dart';
 
 // Make sure you have these standard colors defined or use these defaults
 const Color kPrimaryColor = Color(0xFF4A90E2); // Soft Blue
@@ -63,7 +66,7 @@ class _HomeScreenState extends State<Mainscreen> {
                 physics: const BouncingScrollPhysics(),
                 children: [
                   _buildMenuCard(
-                    title: "Home Screen",
+                    title: "Order-List",
                     subtitle: "Go to main dashboard",
                     icon: Icons.dashboard_rounded,
                     color: Colors.blueAccent,
@@ -74,7 +77,23 @@ class _HomeScreenState extends State<Mainscreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 15),
+                  vertGap(15),
+                  _buildMenuCard(
+                    title: "Customer-List",
+                    subtitle: "View customer details",
+                    icon: Icons.person,
+                    color: blueColor,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CustomerScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  vertGap(15),
+
                   _buildMenuCard(
                     title: "Customer Ledger",
                     subtitle: "View payment history",
