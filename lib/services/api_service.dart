@@ -296,4 +296,30 @@ class ApiService {
       throw Exception("error fetching customer details:$e");
     }
   }
+
+  Future<void> updateCreditReciept({
+    required String customerId,
+    required String paymentMode,
+    required int amount,
+    String? narration,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.updateCreditreciept,
+        data: {
+          "customer_id": customerId,
+          "payment_mode": paymentMode,
+          "amount": amount,
+          "narration": narration,
+        },
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return;
+      } else {
+        throw Exception("failed to update Credit amount");
+      }
+    } catch (e) {
+      throw Exception("error while parsing data :$e");
+    }
+  }
 }

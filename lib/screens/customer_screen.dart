@@ -4,7 +4,6 @@ import 'package:laundry/models/customerbased/customer_details.dart';
 import 'package:laundry/screens/homescreen_widgets/home_header.dart';
 import 'package:laundry/services/api_service.dart';
 import 'package:laundry/utilities/colors.dart';
-import 'package:laundry/utilities/gapfunc.dart';
 
 class CustomerScreen extends StatefulWidget {
   const CustomerScreen({super.key});
@@ -13,8 +12,8 @@ class CustomerScreen extends StatefulWidget {
 }
 
 class _CustomerscreenState extends State<CustomerScreen> {
-  final ApiService _customerService = ApiService();
-  // Using a reference to the controller provided by Autocomplete
+  final ApiService _apiService = ApiService();
+
   TextEditingController? _searchController;
 
   // List<CustomerModel> _allCustomers = [];
@@ -39,7 +38,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
 
   Future<void> _fetchCustomers() async {
     try {
-      final customers = await _customerService.customerDetails();
+      final customers = await _apiService.customerDetails();
       if (mounted) {
         setState(() {
           _allCustomers = customers;
@@ -385,12 +384,152 @@ class _CustomerscreenState extends State<CustomerScreen> {
                 ),
 
                 //      const SizedBox(width: 12),
-
-                // Settlement Button (Clean & distinct)
                 SizedBox(
                   height: 40,
                   child: ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          TextEditingController amountController =
+                              TextEditingController();
+                          TextEditingController narrationController =
+                              TextEditingController();
+                          String selectedPaymentMode = "Cash";
+                          return StatefulBuilder(
+                            builder: (context, updateDialogueState) {
+                              return AlertDialog(
+                                title: const Text("Settle Account"),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Name: ${customer.customerName}",
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      "Phone: ${customer.mobile}",
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      "Opening Balance: ${customer.openingBalance ?? 0}",
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                    TextField(
+                                      controller: amountController,
+                                      decoration: InputDecoration(
+                                        hintText: "amount",
+                                      ),
+                                    ),
+                                    TextField(
+                                      controller: narrationController,
+                                      decoration: InputDecoration(
+                                        hintText: "narration",
+                                      ),
+                                    ),
+                                    DropdownButtonFormField<String>(
+                                      value: selectedPaymentMode,
+                                      decoration: const InputDecoration(
+                                        labelText: "Payment Mode",
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      items: ["Cash", "Online", "UPI", "Bank"]
+                                          .map(
+                                            (mode) => DropdownMenuItem(
+                                              value: mode,
+                                              child: Text(mode),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          updateDialogueState(
+                                            () => selectedPaymentMode = val,
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                    child: const Text("Close"),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    onPressed: () async {
+                                      if (amountController.text.isEmpty) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              "Please enter an amount",
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      // Call your API function
+                                      try {
+                                        await _updateCreditreciept(
+                                          customerId: customer.customerId
+                                              .toString(), // Ensure ID format matches your API
+                                          paymentMode: selectedPaymentMode,
+                                          amount: int.parse(
+                                            amountController.text,
+                                          ),
+                                          narration: narrationController.text,
+                                        );
+
+                                        // Success: Close dialog and refresh list
+                                        if (context.mounted) {
+                                          Navigator.of(
+                                            context,
+                                          ).pop(); // Close dialog
+                                          _fetchCustomers(); // Refresh the background list
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                "Settlement Successful",
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        // Error handling
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text("Error: $e"),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    child: const Text("Confirm"),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
                     icon: const Icon(Icons.check_circle_outline, size: 16),
                     label: const Text("Settle"),
                     style: ElevatedButton.styleFrom(
@@ -472,5 +611,23 @@ class _CustomerscreenState extends State<CustomerScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _updateCreditreciept({
+    required String customerId,
+    required String paymentMode,
+    required int amount,
+    String? narration,
+  }) async {
+    try {
+      await _apiService.updateCreditReciept(
+        customerId: customerId,
+        paymentMode: paymentMode,
+        amount: amount,
+        narration: narration,
+      );
+    } catch (e) {
+      throw Exception("failed to update credit reciept:$e");
+    }
   }
 }
