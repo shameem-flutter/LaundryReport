@@ -4,6 +4,7 @@ import 'package:laundry/models/customerbased/customer_details.dart';
 import 'package:laundry/screens/homescreen_widgets/home_header.dart';
 import 'package:laundry/services/api_service.dart';
 import 'package:laundry/utilities/colors.dart';
+import 'package:laundry/utilities/gapfunc.dart';
 
 class CustomerScreen extends StatefulWidget {
   const CustomerScreen({super.key});
@@ -19,6 +20,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
   // List<CustomerModel> _allCustomers = [];
   List<CustomerListModel> _allCustomers = [];
   List<CustomerListModel> _filteredCustomers = [];
+
   bool _isLoading = true;
   bool hasSearched = false;
   String? _errorMessage;
@@ -90,14 +92,13 @@ class _CustomerscreenState extends State<CustomerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: backgroundColor,
 
       body: SafeArea(
         child: Column(
           children: [
             HomeHeader(),
             Container(
-              color: Colors.white,
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
@@ -186,7 +187,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
                       },
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  horiGap(10),
                   ElevatedButton(
                     onPressed: _performSearch,
                     style: ElevatedButton.styleFrom(
@@ -247,8 +248,9 @@ class _CustomerscreenState extends State<CustomerScreen> {
         horizontal: 05,
       ), // Outer spacing
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.grey.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
+
         // subtle shadow for depth
         boxShadow: [
           BoxShadow(
@@ -286,7 +288,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 14),
+                horiGap(14),
 
                 // Name & Join Date
                 Expanded(
@@ -304,7 +306,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
+                      vertGap(4),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -339,7 +341,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
                         color: Colors.grey.shade500,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    vertGap(2),
                     Text(
                       "${customer.currentBalance}", // Add currency symbol if needed
                       style: TextStyle(
@@ -383,7 +385,6 @@ class _CustomerscreenState extends State<CustomerScreen> {
                   ),
                 ),
 
-                //      const SizedBox(width: 12),
                 SizedBox(
                   height: 40,
                   child: ElevatedButton.icon(
@@ -396,132 +397,300 @@ class _CustomerscreenState extends State<CustomerScreen> {
                           TextEditingController narrationController =
                               TextEditingController();
                           String selectedPaymentMode = "Cash";
+
                           return StatefulBuilder(
                             builder: (context, updateDialogueState) {
                               return AlertDialog(
-                                title: const Text("Settle Account"),
-                                content: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Name: ${customer.customerName}",
-                                      style: const TextStyle(fontSize: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+
+                                // 1. MODERN HEADER
+                                titlePadding: EdgeInsets.zero,
+                                title: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 18,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: primaryColor,
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(20),
                                     ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      "Phone: ${customer.mobile}",
-                                      style: const TextStyle(fontSize: 16),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      "Opening Balance: ${customer.openingBalance ?? 0}",
-                                      style: const TextStyle(fontSize: 16),
-                                    ),
-                                    TextField(
-                                      controller: amountController,
-                                      decoration: InputDecoration(
-                                        hintText: "amount",
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.account_balance_wallet,
+                                        color: Colors.white,
+                                        size: 24,
                                       ),
-                                    ),
-                                    TextField(
-                                      controller: narrationController,
-                                      decoration: InputDecoration(
-                                        hintText: "narration",
+                                      const SizedBox(width: 12),
+                                      const Text(
+                                        "Settle Account",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                        ),
                                       ),
-                                    ),
-                                    DropdownButtonFormField<String>(
-                                      value: selectedPaymentMode,
-                                      decoration: const InputDecoration(
-                                        labelText: "Payment Mode",
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      items: ["Cash", "Online", "UPI", "Bank"]
-                                          .map(
-                                            (mode) => DropdownMenuItem(
-                                              value: mode,
-                                              child: Text(mode),
+                                    ],
+                                  ),
+                                ),
+
+                                // 2. SCROLLABLE CONTENT
+                                content: SingleChildScrollView(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // 3. CUSTOMER INFO CARD
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade50,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.grey.shade200,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            _buildLabelValue(
+                                              "Customer",
+                                              customer.customerName,
                                             ),
-                                          )
-                                          .toList(),
-                                      onChanged: (val) {
-                                        if (val != null) {
-                                          updateDialogueState(
-                                            () => selectedPaymentMode = val,
-                                          );
-                                        }
-                                      },
-                                    ),
-                                  ],
+                                            const SizedBox(height: 6),
+                                            _buildLabelValue(
+                                              "Phone",
+                                              customer.mobile,
+                                            ),
+                                            const Divider(height: 20),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Text(
+                                                  "Current Due",
+                                                  style: TextStyle(
+                                                    color: Colors.grey.shade600,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  "${customer.currentBalance}",
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Colors.red.shade700,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 20),
+
+                                      // 4. AMOUNT FIELD
+                                      TextFormField(
+                                        controller: amountController,
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                            ),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                        decoration: InputDecoration(
+                                          labelText: "Amount Received",
+                                          prefixIcon: Icon(
+                                            Icons.currency_rupee,
+                                            color: Colors.green.shade700,
+                                            size: 20,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 14,
+                                              ),
+                                          isDense: true,
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 16),
+
+                                      // 5. PAYMENT MODE DROPDOWN
+                                      DropdownButtonFormField<String>(
+                                        value: selectedPaymentMode,
+                                        decoration: InputDecoration(
+                                          labelText: "Payment Mode",
+                                          prefixIcon: Icon(
+                                            Icons.category_outlined,
+                                            color: Colors.grey.shade600,
+                                            size: 20,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 14,
+                                              ),
+                                          isDense: true,
+                                        ),
+                                        items: ["Cash", "Online", "UPI", "Bank"]
+                                            .map(
+                                              (mode) => DropdownMenuItem(
+                                                value: mode,
+                                                child: Text(mode),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (val) {
+                                          if (val != null) {
+                                            updateDialogueState(
+                                              () => selectedPaymentMode = val,
+                                            );
+                                          }
+                                        },
+                                      ),
+
+                                      const SizedBox(height: 16),
+
+                                      // 6. NARRATION FIELD
+                                      TextField(
+                                        controller: narrationController,
+                                        decoration: InputDecoration(
+                                          labelText: "Narration (Optional)",
+                                          prefixIcon: Icon(
+                                            Icons.note_alt_outlined,
+                                            color: Colors.grey.shade600,
+                                            size: 20,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 14,
+                                              ),
+                                          isDense: true,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // 7. ACTIONS
+                                actionsPadding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  0,
+                                  20,
+                                  20,
                                 ),
                                 actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                    },
-                                    child: const Text("Close"),
-                                  ),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    onPressed: () async {
-                                      if (amountController.text.isEmpty) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              "Please enter an amount",
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Colors.grey.shade600,
+                                        ),
+                                        child: const Text("Cancel"),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: primaryColor,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 24,
+                                            vertical: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
                                             ),
                                           ),
-                                        );
-                                        return;
-                                      }
-
-                                      // Call your API function
-                                      try {
-                                        await _updateCreditreciept(
-                                          customerId: customer.customerId
-                                              .toString(), // Ensure ID format matches your API
-                                          paymentMode: selectedPaymentMode,
-                                          amount: int.parse(
-                                            amountController.text,
-                                          ),
-                                          narration: narrationController.text,
-                                        );
-
-                                        // Success: Close dialog and refresh list
-                                        if (context.mounted) {
-                                          Navigator.of(
-                                            context,
-                                          ).pop(); // Close dialog
-                                          _fetchCustomers(); // Refresh the background list
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                "Settlement Successful",
+                                          elevation: 2,
+                                        ),
+                                        onPressed: () async {
+                                          if (amountController.text.isEmpty) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  "Please enter an amount",
+                                                ),
                                               ),
-                                            ),
-                                          );
-                                        }
-                                      } catch (e) {
-                                        // Error handling
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text("Error: $e"),
-                                            ),
-                                          );
-                                        }
-                                      }
-                                    },
-                                    child: const Text("Confirm"),
+                                            );
+                                            return;
+                                          }
+
+                                          try {
+                                            await _updateCreditReceipt(
+                                              customerId: customer.customerId
+                                                  .toString(),
+                                              paymentMode: selectedPaymentMode,
+                                              amount: int.parse(
+                                                amountController.text,
+                                              ),
+                                              narration:
+                                                  narrationController.text,
+                                            );
+
+                                            if (context.mounted) {
+                                              Navigator.of(context).pop();
+                                              _fetchCustomers();
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    "Settlement Successful",
+                                                  ),
+                                                  backgroundColor: Colors.green,
+                                                ),
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text("Error: $e"),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        },
+                                        child: const Text("Confirm"),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               );
@@ -530,8 +699,8 @@ class _CustomerscreenState extends State<CustomerScreen> {
                         },
                       );
                     },
-                    icon: const Icon(Icons.check_circle_outline, size: 16),
-                    label: const Text("Settle"),
+                    // icon: const Icon(Icons.check_circle_outline, size: 16),
+                    label: const Text("Clear Due"),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4CAF50),
                       foregroundColor: Colors.white,
@@ -613,21 +782,37 @@ class _CustomerscreenState extends State<CustomerScreen> {
     );
   }
 
-  Future<void> _updateCreditreciept({
+  Future<void> _updateCreditReceipt({
     required String customerId,
     required String paymentMode,
     required int amount,
     String? narration,
   }) async {
     try {
-      await _apiService.updateCreditReciept(
+      await _apiService.updateCreditReceipt(
         customerId: customerId,
         paymentMode: paymentMode,
         amount: amount,
         narration: narration,
       );
     } catch (e) {
-      throw Exception("failed to update credit reciept:$e");
+      throw Exception("failed to update credit receipt:$e");
     }
+  }
+
+  Widget _buildLabelValue(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+        ),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
+      ],
+    );
   }
 }

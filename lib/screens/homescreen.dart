@@ -155,6 +155,7 @@ class _HomescreenState extends State<Homescreen> {
             content: Text('License is not activated'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: redColor,
+            duration: Duration(seconds: 1),
           ),
         );
         return;
@@ -212,9 +213,13 @@ class _HomescreenState extends State<Homescreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(milliseconds: 1400),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -243,7 +248,7 @@ class _HomescreenState extends State<Homescreen> {
   Widget build(BuildContext context) {
     final deliveryCounts = buildDeliveryStatusCount();
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F3),
+      backgroundColor: backgroundColor,
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
@@ -1378,6 +1383,8 @@ class _HomescreenState extends State<Homescreen> {
           const SnackBar(
             content: Text("Order status updated successfully"),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(milliseconds: 800),
           ),
         );
         await _fetchData(); // Refresh list
@@ -1388,6 +1395,7 @@ class _HomescreenState extends State<Homescreen> {
           SnackBar(
             content: Text('Failed to update status: $e'),
             backgroundColor: Colors.red,
+            duration: Duration(milliseconds: 1400),
           ),
         );
       }
@@ -1451,6 +1459,7 @@ class _HomescreenState extends State<Homescreen> {
           const SnackBar(
             content: Text("Updated DeliveryStatus"),
             backgroundColor: Colors.green,
+            duration: Duration(milliseconds: 800),
           ),
         );
         await _fetchData();
