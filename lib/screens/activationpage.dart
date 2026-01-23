@@ -55,7 +55,7 @@ class _ActivationInstructionsScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Machine code copied to clipboard'),
-          duration: Duration(seconds: 2),
+          duration: Duration(seconds: 1),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -71,6 +71,7 @@ class _ActivationInstructionsScreenState
           content: Text('Please enter the activation key'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 1),
         ),
       );
       return;
@@ -87,6 +88,7 @@ class _ActivationInstructionsScreenState
             content: Text('Activation successful!'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
+            duration: Duration(milliseconds: 800),
           ),
         );
 
@@ -103,7 +105,7 @@ class _ActivationInstructionsScreenState
             content: Text("Activation Failed. Invalid license"),
             backgroundColor: redColor,
             behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 1),
           ),
         );
       }

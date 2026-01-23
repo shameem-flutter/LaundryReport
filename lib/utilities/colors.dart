@@ -8,3 +8,4 @@ Color redColor = Colors.redAccent;
 Color blueColor = Colors.blue;
 const Color primaryColor = Color(0xFF34495E);
 const Color greyColor = Colors.grey;
+const Color backgroundColor = Color(0xFFF5F7FA);

@@ -206,8 +206,9 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
   Widget _buildSearchField() {
     return Autocomplete<CustomerListModel>(
       optionsBuilder: (value) {
-        if (value.text.isEmpty)
+        if (value.text.isEmpty) {
           return const Iterable<CustomerListModel>.empty();
+        }
         final query = value.text.toLowerCase();
         return allCustomers.where((customer) {
           return customer.customerName.toLowerCase().contains(query) ||

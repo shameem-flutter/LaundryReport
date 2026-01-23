@@ -1,6 +1,10 @@
+import 'dart:math';
+
 import 'package:dio/dio.dart';
 import 'package:laundry/models/customer.dart';
 import 'package:laundry/models/customerbased/customer_details.dart';
+import 'package:laundry/models/customerbased/customerledger_model.dart';
+import 'package:laundry/models/customeroutstandingmodel.dart';
 import 'package:laundry/models/deliveryboy.dart';
 import 'package:laundry/models/itemwise.dart';
 import 'package:laundry/models/orderreport.dart';
@@ -9,13 +13,15 @@ import 'package:laundry/models/services.dart';
 import 'package:laundry/services/api_endpoints.dart';
 
 class ApiService {
-  Dio get _dio => Dio(
-    BaseOptions(
-      baseUrl: ApiEndpoints.baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-    ),
-  );
+  Dio get _dio {
+    return Dio(
+      BaseOptions(
+        baseUrl: ApiEndpoints.baseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
+  }
 
   Future<bool> checkLicenseStatus() async {
     try {
@@ -290,14 +296,14 @@ class ApiService {
         final List<dynamic> data = response.data;
         return data.map((json) => CustomerListModel.fromJson(json)).toList();
       } else {
-        throw Exception("failed to fetch customer details");
+        throw Exception("failed to fetch customer details:$e");
       }
     } catch (e) {
       throw Exception("error fetching customer details:$e");
     }
   }
 
-  Future<void> updateCreditReciept({
+  Future<void> updateCreditReceipt({
     required String customerId,
     required String paymentMode,
     required int amount,
@@ -305,7 +311,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.post(
-        ApiEndpoints.updateCreditreciept,
+        ApiEndpoints.updateCreditReceipt,
         data: {
           "customer_id": customerId,
           "payment_mode": paymentMode,
@@ -319,7 +325,47 @@ class ApiService {
         throw Exception("failed to update Credit amount");
       }
     } catch (e) {
-      throw Exception("error while parsing data :$e");
+      throw Exception("Error updating credit receipt: $e");
+    }
+  }
+
+  Future<CustomerLedgerModel> getCustomerledger({
+    required String customerId,
+    required String startDate,
+    required String endDate,
+  }) async {
+    final response = await _dio.get(
+      ApiEndpoints.getCustomerLedger,
+      queryParameters: {
+        "customer_id": customerId,
+        "from_date": startDate,
+        "to_date": endDate,
+      },
+    );
+    if (response.statusCode == 200) {
+      return CustomerLedgerModel.fromJson(response.data);
+    } else {
+      throw Exception("Error occured while parsing Customer Ledger");
+    }
+  }
+
+  Future<List<CustomerOutstandingModel>> getCustomerOutstanding() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.getCustomeroutstanding);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data as List<dynamic>;
+        return data
+            .map(
+              (json) => CustomerOutstandingModel.fromJson(
+                json as Map<String, dynamic>,
+              ),
+            )
+            .toList();
+      } else {
+        throw Exception("failed to get customeroutstanding data $e");
+      }
+    } catch (e) {
+      throw Exception("error while parsing customeroutstanding $e");
     }
   }
 }

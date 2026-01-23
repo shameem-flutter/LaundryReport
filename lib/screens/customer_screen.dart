@@ -535,7 +535,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
 
                                       // 5. PAYMENT MODE DROPDOWN
                                       DropdownButtonFormField<String>(
-                                        value: selectedPaymentMode,
+                                        initialValue: selectedPaymentMode,
                                         decoration: InputDecoration(
                                           labelText: "Payment Mode",
                                           prefixIcon: Icon(
@@ -644,6 +644,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
                                                 content: Text(
                                                   "Please enter an amount",
                                                 ),
+                                                duration: Duration(seconds: 1),
                                               ),
                                             );
                                             return;
@@ -672,6 +673,11 @@ class _CustomerscreenState extends State<CustomerScreen> {
                                                     "Settlement Successful",
                                                   ),
                                                   backgroundColor: Colors.green,
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                  duration: Duration(
+                                                    milliseconds: 800,
+                                                  ),
                                                 ),
                                               );
                                             }
