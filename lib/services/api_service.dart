@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:dio/dio.dart';
+import 'package:laundry/models/country_model.dart';
 import 'package:laundry/models/customer.dart';
 import 'package:laundry/models/customerbased/customer_details.dart';
 import 'package:laundry/models/customerbased/customerledger_model.dart';
@@ -366,6 +367,34 @@ class ApiService {
       }
     } catch (e) {
       throw Exception("error while parsing customeroutstanding $e");
+    }
+  }
+
+  Future<List<CountryCodeModel>> getCountrycode() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.getCountrycode);
+      
+      if (response.statusCode == 200) {
+        List<dynamic> data;
+        if (response.data is List) {
+          data = response.data;
+        } else if (response.data is Map) {
+          // It's a single object, so wrap it in a list
+           data = [response.data];
+        } else {
+           print("Unexpected CountryCode API response: ${response.data}");
+           return [];
+        }
+
+        return data
+            .map((json) => CountryCodeModel.fromJson(json as Map<String, dynamic>))
+            .toList();
+      } else {
+        throw Exception("failed to get country code (Status: ${response.statusCode})");
+      }
+    } catch (e) {
+       print("Error in getCountrycode: $e");
+       throw Exception("error while parsing country code: $e");
     }
   }
 }

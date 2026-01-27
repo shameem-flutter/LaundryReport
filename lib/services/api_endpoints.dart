@@ -48,4 +48,5 @@ class ApiEndpoints {
   static const String getCustomerLedger = 'api/v1/integration/customer-ledger/';
   static const String getCustomeroutstanding =
       'api/v1/integration/customer-outstanding-report/';
+  static const String getCountrycode = 'api/v1/integration/country-details/';
 }

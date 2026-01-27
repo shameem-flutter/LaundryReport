@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:laundry/models/country_model.dart';
 import 'package:laundry/models/customeroutstandingmodel.dart';
 import 'package:laundry/screens/homescreen_widgets/home_header.dart';
 import 'package:laundry/services/api_service.dart';
@@ -15,6 +16,7 @@ class _CustomerOustandingState extends State<CustomerOutstanding> {
   ApiService apiService = ApiService();
   List<CustomerOutstandingModel> custOutstanding = [];
   List<CustomerOutstandingModel> filteredCustomer = [];
+  List<CountryCodeModel> countryCode = [];
   TextEditingController? searchController;
   bool hasSearched = false;
   bool isLoading = true;
@@ -23,6 +25,7 @@ class _CustomerOustandingState extends State<CustomerOutstanding> {
   void initState() {
     super.initState();
     getCustOutstanding();
+    _getCountrycode();
   }
 
   @override
@@ -47,6 +50,19 @@ class _CustomerOustandingState extends State<CustomerOutstanding> {
           isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _getCountrycode() async {
+    try {
+      final result = await apiService.getCountrycode();
+      if (mounted) {
+        setState(() {
+          countryCode = result;
+        });
+      }
+    } catch (e) {
+      debugPrint("failed to get country code: $e");
     }
   }
 
@@ -283,7 +299,7 @@ class _CustomerOustandingState extends State<CustomerOutstanding> {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      "${item.totalOutstandingAmount.toString()}",
+                                      "${countryCode.isNotEmpty ? countryCode.first.currencyCode : ''}:${item.totalOutstandingAmount.toString()}",
 
                                       style: const TextStyle(
                                         fontSize: 16,
