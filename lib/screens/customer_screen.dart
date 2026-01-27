@@ -33,8 +33,6 @@ class _CustomerscreenState extends State<CustomerScreen> {
 
   @override
   void dispose() {
-    // _searchController is managed by Autocomplete, do not dispose here if we pick it up from builder.
-    // However, if we don't own it, we don't dispose it.
     super.dispose();
   }
 
@@ -68,9 +66,8 @@ class _CustomerscreenState extends State<CustomerScreen> {
         _filteredCustomers = List.from(_allCustomers);
       } else {
         _filteredCustomers = _allCustomers.where((customer) {
-          return customer.customerName.toLowerCase().contains(lowerQuery);
-          //   customer.customerId.toString().contains(lowerQuery)
-          //   customer.mobile.contains(lowerQuery);
+          return customer.customerName.toLowerCase().contains(lowerQuery) ||
+              customer.mobile.contains(lowerQuery);
         }).toList();
       }
     });
@@ -265,9 +262,6 @@ class _CustomerscreenState extends State<CustomerScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ---------------------------------------------
-          // TOP SECTION: Header & Balance
-          // ---------------------------------------------
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -276,7 +270,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
                 // Avatar
                 CircleAvatar(
                   radius: 24,
-                  backgroundColor: const Color(0xFF2C3E50), // Modern dark slate
+                  backgroundColor: const Color(0xFF2C3E50),
                   child: Text(
                     customer.customerName.isNotEmpty
                         ? customer.customerName[0].toUpperCase()
@@ -377,10 +371,10 @@ class _CustomerscreenState extends State<CustomerScreen> {
                         customer.address,
                       ),
                       const SizedBox(height: 8),
-                      _buildIconRow(
-                        Icons.account_balance_wallet_rounded,
-                        "Opening: ${customer.openingBalance ?? 0}",
-                      ),
+                      // _buildIconRow(
+                      //  Icons.account_balance_wallet_rounded,
+                      //   "Opening: ${customer.openingBalance ?? 0}",
+                      // ),
                     ],
                   ),
                 ),

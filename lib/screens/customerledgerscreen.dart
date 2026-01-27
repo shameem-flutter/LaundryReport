@@ -92,7 +92,7 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.05),
+                    color: Colors.grey.withValues(alpha: 0.05),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -265,7 +265,7 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
                   return ListTile(
                     leading: CircleAvatar(
                       radius: 18,
-                      backgroundColor: primaryColor.withOpacity(0.1),
+                      backgroundColor: primaryColor.withValues(alpha: 0.1),
                       child: Text(
                         option.customerName[0].toUpperCase(),
                         style: TextStyle(

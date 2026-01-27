@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // Add intl to pubspec.yaml for currency formatting
 import 'package:laundry/models/customeroutstandingmodel.dart';
 import 'package:laundry/screens/homescreen_widgets/home_header.dart';
 import 'package:laundry/services/api_service.dart';
 import 'package:laundry/utilities/colors.dart';
+import 'package:laundry/utilities/gapfunc.dart';
 
 class CustomerOutstanding extends StatefulWidget {
   const CustomerOutstanding({super.key});
@@ -12,49 +12,176 @@ class CustomerOutstanding extends StatefulWidget {
 }
 
 class _CustomerOustandingState extends State<CustomerOutstanding> {
-  // --- YOUR LOGIC STARTS HERE (UNCHANGED) ---
   ApiService apiService = ApiService();
   List<CustomerOutstandingModel> custOutstanding = [];
-
+  List<CustomerOutstandingModel> filteredCustomer = [];
+  TextEditingController? searchController;
+  bool hasSearched = false;
+  bool isLoading = true;
+  String? errorMessage;
   @override
   void initState() {
     super.initState();
     getCustOutstanding();
   }
 
-  Future<void> getCustOutstanding() async {
-    final result = await apiService.getCustomerOutstanding();
-    if (!mounted) return;
-    custOutstanding = result;
-    setState(() {});
+  @override
+  void dispose() {
+    super.dispose();
   }
-  // --- YOUR LOGIC ENDS HERE ---
+
+  Future<void> getCustOutstanding() async {
+    try {
+      final result = await apiService.getCustomerOutstanding();
+      if (mounted) {
+        setState(() {
+          custOutstanding = result;
+          filteredCustomer = result;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          errorMessage = e.toString();
+          isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Helper for currency formatting (UI only)
-    final currencyFormat = NumberFormat.simpleCurrency(decimalDigits: 2);
-
     return Scaffold(
-      backgroundColor: Colors.grey.shade50, // Modern off-white background
+      backgroundColor: Colors.grey.shade50,
       body: SafeArea(
         child: Column(
           children: [
             const HomeHeader(),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Autocomplete<CustomerOutstandingModel>(
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        if (textEditingValue.text.isEmpty) {
+                          return const Iterable<
+                            CustomerOutstandingModel
+                          >.empty();
+                        }
+                        final query = textEditingValue.text.toLowerCase();
+                        return custOutstanding.where((customer) {
+                          return customer.customerName.toLowerCase().contains(
+                                query,
+                              ) ||
+                              customer.customerMobile.contains(query);
+                        });
+                      },
+                      displayStringForOption:
+                          (CustomerOutstandingModel option) =>
+                              option.customerName,
+                      onSelected: (CustomerOutstandingModel selection) {
+                        // Optional: Auto-search on selection
+                        //  _performSearch();
+                      },
+                      fieldViewBuilder:
+                          (
+                            context,
+                            textEditingController,
+                            focusNode,
+                            onFieldSubmitted,
+                          ) {
+                            searchController = textEditingController;
+                            return TextField(
+                              controller: textEditingController,
+                              focusNode: focusNode,
+                              onSubmitted: (String value) {
+                                onFieldSubmitted();
+                                FocusScope.of(context).unfocus();
+                              },
+                              decoration: InputDecoration(
+                                hintText: "Search customer...",
+                                prefixIcon: const Icon(Icons.search),
+                                filled: true,
+                                fillColor: Colors.grey.shade100,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                              ),
+                            );
+                          },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4,
+                            borderRadius: BorderRadius.circular(8),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxHeight: 200,
+                                maxWidth:
+                                    MediaQuery.of(context).size.width - 100,
+                              ),
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                itemBuilder: (BuildContext context, int index) {
+                                  final option = options.elementAt(index);
+                                  return ListTile(
+                                    title: Text(option.customerName),
+                                    subtitle: Text(option.customerMobile),
+                                    onTap: () {
+                                      onSelected(option);
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  horiGap(10),
+                  ElevatedButton(
+                    onPressed: _performSearch,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text("Search"),
+                  ),
+                ],
+              ),
+            ),
 
-            // Expanded List
             Expanded(
-              child: custOutstanding.isEmpty
-                  ? const Center(
-                      child: CircularProgressIndicator(),
-                    ) // Optional: Simple loader while waiting
+              child: isLoading
+                  ? Center(child: CircularProgressIndicator())
+                  : errorMessage != null
+                  ? Center(child: Text("Error: $errorMessage"))
+                  : filteredCustomer.isEmpty
+                  ? const Center(child: Text("No Customers found"))
                   : ListView.separated(
                       padding: const EdgeInsets.all(16),
-                      itemCount: custOutstanding.length,
+                      itemCount: filteredCustomer.length,
                       separatorBuilder: (context, index) =>
                           const SizedBox(height: 12),
                       itemBuilder: (context, index) {
-                        final item = custOutstanding[index];
+                        final item = filteredCustomer[index];
 
                         return Container(
                           decoration: BoxDecoration(
@@ -156,9 +283,8 @@ class _CustomerOustandingState extends State<CustomerOutstanding> {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      currencyFormat.format(
-                                        item.totalOutstandingAmount,
-                                      ),
+                                      "${item.totalOutstandingAmount.toString()}",
+
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w800,
@@ -187,5 +313,22 @@ class _CustomerOustandingState extends State<CustomerOutstanding> {
         ),
       ),
     );
+  }
+
+  void _performSearch() {
+    final query = searchController?.text.trim() ?? "";
+    final lowerQuery = query.toLowerCase();
+    setState(() {
+      hasSearched = true;
+
+      if (query.isEmpty || lowerQuery == "all") {
+        filteredCustomer = List.from(custOutstanding);
+      } else {
+        filteredCustomer = custOutstanding.where((customer) {
+          return customer.customerName.toLowerCase().contains(lowerQuery) ||
+              customer.customerMobile.contains(lowerQuery);
+        }).toList();
+      }
+    });
   }
 }

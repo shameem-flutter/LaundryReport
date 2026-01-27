@@ -66,7 +66,7 @@ class _HomeScreenState extends State<Mainscreen> {
                 physics: const BouncingScrollPhysics(),
                 children: [
                   _buildMenuCard(
-                    title: "Order-List",
+                    title: "Order List",
                     subtitle: "Go to main dashboard",
                     icon: Icons.dashboard_rounded,
                     color: Colors.blueAccent,
@@ -79,7 +79,7 @@ class _HomeScreenState extends State<Mainscreen> {
                   ),
                   vertGap(15),
                   _buildMenuCard(
-                    title: "Customer-List",
+                    title: "Customer List",
                     subtitle: "View customer details",
                     icon: Icons.person,
                     color: blueColor,
