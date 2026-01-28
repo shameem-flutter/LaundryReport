@@ -14,6 +14,10 @@ import 'package:laundry/screens/licensekey.dart';
 import 'package:laundry/services/api_service.dart';
 import 'package:laundry/utilities/colors.dart';
 import 'package:laundry/utilities/gapfunc.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'dart:typed_data';
 
 class Homescreen extends StatefulWidget {
   static const routeName = '/home';
@@ -73,6 +77,170 @@ class _HomescreenState extends State<Homescreen> {
   void initState() {
     super.initState();
     _loadFilterData();
+  }
+
+  /// Generates the PDF document based on current table data
+  Future<Uint8List> _generatePdf(PdfPageFormat format) async {
+    final pdf = pw.Document();
+
+    // Define fonts and styles
+    final font = await PdfGoogleFonts.poppinsRegular();
+    final fontBold = await PdfGoogleFonts.poppinsBold();
+
+    // 1. Determine which data to print
+    final bool isItemReport = _isItemWise;
+    final String title = isItemReport ? "Item-Wise Report" : "Order Report";
+    final String dateRange =
+        "${DateFormat('dd/MM/yyyy').format(_fromDate)} - ${DateFormat('dd/MM/yyyy').format(_toDate)}";
+
+    // 2. Build Data Rows
+    final List<List<String>> tableData = [];
+
+    // Define Headers
+    final List<String> headers = isItemReport
+        ? [
+            'Order No',
+            'Date',
+            'Service',
+            'Item',
+            'Item Status',
+            'Customer',
+            'Mobile',
+            'Payment',
+            'OrderStatus',
+            'Deliverstatus',
+          ]
+        : [
+            'Order No',
+            'Date',
+            'Customer',
+            'Mobile',
+            'Address',
+            'Payment',
+            'Order Status',
+            'Deliverystatus',
+          ];
+
+    tableData.add(headers);
+
+    // Populate Rows
+    if (isItemReport) {
+      for (var item in _filteredItems) {
+        tableData.add([
+          "${item.orderNo}",
+          DateFormat('dd/MM/yy').format(item.orderDate),
+          item.serviceName,
+          "${item.item} (${item.serviceType})",
+          item.itemStatus,
+          item.customerName,
+          item.customerMobile,
+          item.paymentStatus,
+          item.orderStatus,
+          item.deliveryStatus,
+        ]);
+      }
+    } else {
+      for (var order in _orders) {
+        tableData.add([
+          "${order.orderNo}",
+          DateFormat('dd/MM/yy').format(order.orderDate),
+          order.customerName,
+          order.customerMobile,
+          order.customerAddress == "-" ? "" : order.customerAddress,
+          order.paymentStatus,
+          order.orderStatus,
+          order.deliveryStatus,
+        ]);
+      }
+    }
+
+    // 3. Create PDF Page
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: format.landscape, // Landscape for better table fit
+        theme: pw.ThemeData.withFont(base: font, bold: fontBold),
+        build: (context) {
+          return [
+            pw.Header(
+              level: 0,
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    title,
+                    style: pw.TextStyle(
+                      fontSize: 24,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.Text(
+                    "Date: $dateRange",
+                    style: const pw.TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 20),
+
+            pw.TableHelper.fromTextArray(
+              headers: tableData.first,
+              data: tableData.sublist(1),
+              border: pw.TableBorder.all(color: PdfColors.grey700, width: 0.8),
+              headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+              ),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.blue900,
+              ),
+              rowDecoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  bottom: pw.BorderSide(color: PdfColors.grey300),
+                ),
+              ),
+              cellAlignment: pw.Alignment.centerLeft,
+              cellPadding: const pw.EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 10,
+              ),
+              headerPadding: const pw.EdgeInsets.symmetric(
+                horizontal: 05,
+                vertical: 05,
+              ),
+              cellStyle: const pw.TextStyle(fontSize: 10),
+            ),
+            pw.SizedBox(height: 20),
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Text(
+                "Total Records: ${isItemReport ? _filteredItems.length : _orders.length}",
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              ),
+            ),
+          ];
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  /// Trigger Printing or Sharing
+  Future<void> _printOrShare() async {
+    // Check if there is data to print
+    if ((_isItemWise && _filteredItems.isEmpty) ||
+        (!_isItemWise && _orders.isEmpty)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("No data to print!")));
+      return;
+    }
+
+    // Opens the native print dialog (which includes a "Share" button for WhatsApp)
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => _generatePdf(format),
+      name: 'Laundry_Report_${DateFormat('dd_MM_yyyy').format(DateTime.now())}',
+    );
   }
 
   Future<void> _loadFilterData() async {
@@ -249,6 +417,12 @@ class _HomescreenState extends State<Homescreen> {
     final deliveryCounts = buildDeliveryStatusCount();
     return Scaffold(
       backgroundColor: backgroundColor,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _printOrShare,
+        backgroundColor: primaryColor,
+        icon: Icon(Icons.print, color: whiteColor),
+        label: Text("Print/Share", style: TextStyle(color: whiteColor)),
+      ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
@@ -297,7 +471,7 @@ class _HomescreenState extends State<Homescreen> {
                   _buildItemsTable(items: _filteredItems)
                 else
                   _buildOrderList(orders: _orders),
-                vertGap(10),
+                vertGap(60),
               ],
             ),
           ),
@@ -449,13 +623,12 @@ class _HomescreenState extends State<Homescreen> {
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            vertGap(6),
                             TextFormField(
                               controller: _orderNoController,
                               decoration: InputDecoration(
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 10,
-                                  vertical: 0,
                                 ),
                                 border: OutlineInputBorder(
                                   borderSide: BorderSide(

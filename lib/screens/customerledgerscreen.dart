@@ -327,7 +327,7 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: primaryColor.withOpacity(0.3),
+              color: primaryColor.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -445,14 +445,14 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [primaryColor, primaryColor.withOpacity(0.8)],
+          colors: [primaryColor, primaryColor.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: primaryColor.withOpacity(0.3),
+            color: primaryColor.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -530,7 +530,7 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.06),
+            color: Colors.grey.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
