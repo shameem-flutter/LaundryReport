@@ -515,7 +515,7 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
     String month = "NOV";
     try {
       // Assuming item.trnDate is String "2023-11-24" or similar
-      final dt = DateTime.parse(item.trnDate.toString());
+      final dt = DateTime.parse(item..toString());
       day = DateFormat('dd').format(dt);
       month = DateFormat('MMM').format(dt).toUpperCase();
     } catch (e) {

@@ -18,6 +18,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'dart:typed_data';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class Homescreen extends StatefulWidget {
   static const routeName = '/home';
@@ -125,7 +128,10 @@ class _HomescreenState extends State<Homescreen> {
 
     // Populate Rows
     if (isItemReport) {
-      for (var item in _filteredItems) {
+      // _filteredItems.sort((a, b) => a.orderNo.compareTo(b.orderNo));
+      final sortedItems = [..._filteredItems]
+        ..sort((a, b) => a.orderNo.compareTo(b.orderNo));
+      for (var item in sortedItems) {
         tableData.add([
           "${item.orderNo}",
           DateFormat('dd/MM/yy').format(item.orderDate),
@@ -140,7 +146,10 @@ class _HomescreenState extends State<Homescreen> {
         ]);
       }
     } else {
-      for (var order in _orders) {
+      // _orders.sort((a, b) => a.orderNo.compareTo(b.orderNo));
+      final sortedOrders = [..._orders]
+        ..sort((a, b) => a.orderNo.compareTo(b.orderNo));
+      for (var order in sortedOrders) {
         tableData.add([
           "${order.orderNo}",
           DateFormat('dd/MM/yy').format(order.orderDate),
@@ -159,6 +168,7 @@ class _HomescreenState extends State<Homescreen> {
       pw.MultiPage(
         pageFormat: format.landscape, // Landscape for better table fit
         theme: pw.ThemeData.withFont(base: font, bold: fontBold),
+        margin: const pw.EdgeInsets.all(10),
         build: (context) {
           return [
             pw.Header(
@@ -180,7 +190,7 @@ class _HomescreenState extends State<Homescreen> {
                 ],
               ),
             ),
-            pw.SizedBox(height: 20),
+            pw.SizedBox(height: 10),
 
             pw.TableHelper.fromTextArray(
               headers: tableData.first,
@@ -199,16 +209,10 @@ class _HomescreenState extends State<Homescreen> {
                 ),
               ),
               cellAlignment: pw.Alignment.centerLeft,
-              cellPadding: const pw.EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 10,
-              ),
-              headerPadding: const pw.EdgeInsets.symmetric(
-                horizontal: 05,
-                vertical: 05,
-              ),
               cellStyle: const pw.TextStyle(fontSize: 10),
+              columnWidths: {0: const pw.FixedColumnWidth(40)},
             ),
+
             pw.SizedBox(height: 20),
             pw.Align(
               alignment: pw.Alignment.centerRight,
@@ -225,6 +229,27 @@ class _HomescreenState extends State<Homescreen> {
     return pdf.save();
   }
 
+  Future<void> _sharePdf(PdfPageFormat format) async {
+    try {
+      final pdfBytes = await _generatePdf(format);
+      final directory = await getTemporaryDirectory();
+      final file = File(
+        '${directory.path}/laundry_report_${DateFormat('dd_MM_yyyy').format(DateTime.now())}.pdf',
+      );
+      await file.writeAsBytes(pdfBytes);
+
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: 'Here is the Laundry Report.');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error sharing PDF: $e")));
+      }
+    }
+  }
+
   /// Trigger Printing or Sharing
   Future<void> _printOrShare() async {
     // Check if there is data to print
@@ -232,14 +257,41 @@ class _HomescreenState extends State<Homescreen> {
         (!_isItemWise && _orders.isEmpty)) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("No data to print!")));
+      ).showSnackBar(const SnackBar(content: Text("No data to print/share!")));
       return;
     }
 
-    // Opens the native print dialog (which includes a "Share" button for WhatsApp)
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => _generatePdf(format),
-      name: 'Laundry_Report_${DateFormat('dd_MM_yyyy').format(DateTime.now())}',
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.print),
+                title: const Text('Print'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Printing.layoutPdf(
+                    onLayout: (PdfPageFormat format) async =>
+                        _generatePdf(format),
+                    name:
+                        'Laundry_Report_${DateFormat('dd_MM_yyyy').format(DateTime.now())}',
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.share),
+                title: const Text('Share via WhatsApp/Others'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _sharePdf(PdfPageFormat.a4.landscape);
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
