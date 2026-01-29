@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:laundry/models/customerbased/customer_details.dart';
@@ -6,6 +10,9 @@ import 'package:laundry/screens/homescreen_widgets/home_header.dart';
 import 'package:laundry/services/api_service.dart';
 import 'package:laundry/utilities/colors.dart';
 import 'package:laundry/utilities/gapfunc.dart';
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 
 class Customerledgerscreen extends StatefulWidget {
   const Customerledgerscreen({super.key});
@@ -18,12 +25,12 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
   final ApiService _apiService = ApiService();
   TextEditingController? searchController;
   List<CustomerListModel> allCustomers = [];
-  CustomerLedgerModel? ledgerData;
+  CustomerLedgerModel? custLedgerData;
   String? errorMessage;
   bool _isLoading = true;
   CustomerListModel? selectedCustomer;
 
-  DateTime _fromDate = DateTime.now();
+  DateTime _fromDate = DateTime.now().subtract(Duration(days: 14));
   DateTime _toDate = DateTime.now();
 
   @override
@@ -64,7 +71,7 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
       );
       if (mounted) {
         setState(() {
-          ledgerData = data;
+          custLedgerData = data;
           _isLoading = false;
         });
       }
@@ -73,89 +80,292 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Modern off-white background for the scaffold to make white cards pop
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // --- TOP CONTROL PANEL SECTION ---
-            Container(
-              padding: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: whiteColor,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withValues(alpha: 0.05),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Column(
+  Future<Uint8List> _generatePdf(PdfPageFormat format) async {
+    final pdf = pw.Document();
+
+    // Define fonts and styles
+    final font = await PdfGoogleFonts.poppinsRegular();
+    final fontBold = await PdfGoogleFonts.poppinsBold();
+
+    // 1. Determine which data to print
+    final custLedgerPrint = custLedgerData;
+    final String title = "Order Report";
+    final String dateRange =
+        "${DateFormat('dd/MM/yyyy').format(_fromDate)} - ${DateFormat('dd/MM/yyyy').format(_toDate)}";
+
+    // 2. Build Data Rows
+    final List<List<String>> tableData = [];
+
+    // Define Headers
+    final List<String> headers = [
+      'Date',
+      'Trn.No',
+      'Description',
+      'Payment Mode',
+      'Narration',
+      'Credit',
+      'Reciept',
+      'Balance',
+    ];
+
+    tableData.add(headers);
+
+    // Populate Rows
+
+    // _filteredItems.sort((a, b) => a.orderNo.compareTo(b.orderNo));
+    final sortedItems = [...custLedgerData!.ledger]
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    for (var item in sortedItems) {
+      tableData.add([
+        item.trnDate == null
+            ? "-"
+            : DateFormat('dd/MM/yy').format(item.trnDate!),
+        "${item.trnNo}",
+
+        item.description,
+        item.paymentMode.toString(),
+        item.narration.toString(),
+        item.creditAmount.toString(),
+        item.receiptAmount.toString(),
+        item.balance.toString(),
+      ]);
+    }
+
+    // 3. Create PDF Page
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: format.landscape, // Landscape for better table fit
+        theme: pw.ThemeData.withFont(base: font, bold: fontBold),
+        margin: const pw.EdgeInsets.all(10),
+        build: (context) {
+          return [
+            pw.Header(
+              level: 0,
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  const HomeHeader(), // Assuming this has its own internal padding
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        // Search Row
-                        Row(
-                          children: [
-                            Expanded(child: _buildSearchField()),
-                            horiGap(10),
-                            _buildSearchButton(),
-                          ],
-                        ),
-                        vertGap(16),
-                        // Date Filter Row
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _datePickerCard(
-                                label: "From Date",
-                                date: _fromDate,
-                                icon: Icons.calendar_today_outlined,
-                                onChanged: (d) => setState(() => _fromDate = d),
-                              ),
-                            ),
-                            horiGap(12),
-                            Expanded(
-                              child: _datePickerCard(
-                                label: "To Date",
-                                date: _toDate,
-                                icon: Icons.event_available_outlined,
-                                onChanged: (d) => setState(() => _toDate = d),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                  pw.Text(
+                    title,
+                    style: pw.TextStyle(
+                      fontSize: 24,
+                      fontWeight: pw.FontWeight.bold,
                     ),
                   ),
+                  pw.Text(
+                    "Date: $dateRange",
+                    style: const pw.TextStyle(fontSize: 14),
+                  ),
                 ],
               ),
             ),
+            pw.SizedBox(height: 10),
 
-            // --- RESULT SECTION ---
-            Expanded(
-              child: _isLoading
-                  ? Center(
-                      child: CircularProgressIndicator(color: primaryColor),
-                    )
-                  : errorMessage != null
-                  ? _buildErrorState()
-                  : ledgerData != null
-                  ? getData(ledgerData!)
-                  : _buildEmptyState(),
+            pw.TableHelper.fromTextArray(
+              headers: tableData.first,
+              data: tableData.sublist(1),
+              border: pw.TableBorder.all(color: PdfColors.grey700, width: 0.8),
+              headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+              ),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.blue900,
+              ),
+              rowDecoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  bottom: pw.BorderSide(color: PdfColors.grey300),
+                ),
+              ),
+              cellAlignment: pw.Alignment.centerLeft,
+              cellStyle: const pw.TextStyle(fontSize: 10),
+              columnWidths: {0: const pw.FixedColumnWidth(40)},
             ),
-          ],
+
+            pw.SizedBox(height: 20),
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Text(
+                "Closing Balance: ${custLedgerPrint!.closingBalance}",
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              ),
+            ),
+          ];
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  Future<void> _sharePdf(PdfPageFormat format) async {
+    try {
+      final pdfBytes = await _generatePdf(format);
+      final directory = await getTemporaryDirectory();
+      final file = File(
+        '${directory.path}/CustomerLedger${DateFormat('dd_MM_yyyy').format(DateTime.now())}.pdf',
+      );
+      await file.writeAsBytes(pdfBytes);
+
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Here is the Laundry Report.',
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error sharing PDF: $e"),
+            duration: Duration(milliseconds: 800),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Trigger Printing or Sharing
+  Future<void> _printOrShare() async {
+    // Check if there is data to print
+    if (custLedgerData == null || custLedgerData!.ledger.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("No data to print/share!"),
+          backgroundColor: redColor,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.print),
+                title: const Text('Print'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Printing.layoutPdf(
+                    onLayout: (PdfPageFormat format) async =>
+                        _generatePdf(format),
+                    name:
+                        'Laundry_Report_${DateFormat('dd_MM_yyyy').format(DateTime.now())}',
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.share),
+                title: const Text('Share via WhatsApp/Others'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _sharePdf(PdfPageFormat.a4.landscape);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        floatingActionButton: FloatingActionButton.extended(
+          icon: Icon(Icons.print, color: whiteColor),
+          onPressed: _printOrShare,
+          label: Text("Print/Share", style: TextStyle(color: whiteColor)),
+          backgroundColor: primaryColor,
+        ),
+        backgroundColor: Colors.grey.shade50,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: whiteColor,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(30),
+                    bottomRight: Radius.circular(30),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withValues(alpha: 0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    const HomeHeader(), // Assuming this has its own internal padding
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        children: [
+                          // Search Row
+                          Row(
+                            children: [
+                              Expanded(child: _buildSearchField()),
+                              horiGap(10),
+                              _buildSearchButton(),
+                            ],
+                          ),
+                          vertGap(16),
+                          // Date Filter Row
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _datePickerCard(
+                                  label: "From Date",
+                                  date: _fromDate,
+                                  icon: Icons.calendar_today_outlined,
+                                  onChanged: (d) =>
+                                      setState(() => _fromDate = d),
+                                ),
+                              ),
+                              horiGap(12),
+                              Expanded(
+                                child: _datePickerCard(
+                                  label: "To Date",
+                                  date: _toDate,
+                                  icon: Icons.event_available_outlined,
+                                  onChanged: (d) => setState(() => _toDate = d),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // --- RESULT SECTION ---
+              Expanded(
+                child: _isLoading
+                    ? Center(
+                        child: CircularProgressIndicator(color: primaryColor),
+                      )
+                    : errorMessage != null
+                    ? _buildErrorState()
+                    : custLedgerData != null
+                    ? getData(custLedgerData!)
+                    : _buildEmptyState(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -297,43 +507,49 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
   }
 
   Widget _buildSearchButton() {
-    return InkWell(
-      onTap: () {
-        if (selectedCustomer == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Please select a customer first"),
-              backgroundColor: Colors.redAccent,
-              duration: Duration(milliseconds: 800),
-            ),
-          );
-          return;
-        }
-        setState(() {
-          _isLoading = true;
-          errorMessage = null;
-        });
-        _getCustomerledger(
-          customerId: selectedCustomer!.customerId.toString(),
-          startDate: DateFormat('yyyy-MM-dd').format(_fromDate),
-          endDate: DateFormat('yyyy-MM-dd').format(_toDate),
-        );
-      },
-      child: Container(
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
         height: 55,
         width: 55,
         decoration: BoxDecoration(
           color: primaryColor,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: primaryColor.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: primaryColor.withValues(alpha: 0.3))],
         ),
-        child: const Icon(Icons.arrow_forward_rounded, color: Colors.white),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          splashColor: Colors.white.withValues(alpha: 0.25),
+          highlightColor: Colors.white.withValues(alpha: 0.15),
+          onTap: () {
+            if (selectedCustomer == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Please select a customer first"),
+                  backgroundColor: Colors.redAccent,
+                  duration: Duration(milliseconds: 800),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+              return;
+            }
+
+            setState(() {
+              _isLoading = true;
+              errorMessage = null;
+            });
+
+            _getCustomerledger(
+              customerId: selectedCustomer!.customerId.toString(),
+              startDate: DateFormat('yyyy-MM-dd').format(_fromDate),
+              endDate: DateFormat('yyyy-MM-dd').format(_toDate),
+            );
+          },
+          child: const Center(
+            child: Icon(Icons.arrow_forward_rounded, color: Colors.white),
+          ),
+        ),
       ),
     );
   }
@@ -418,7 +634,7 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
         // 2. Transaction List
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 90),
             itemCount: ledger.ledger.length,
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -505,7 +721,7 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
   }
 
   Widget _buildTransactionCard(
-    var item,
+    Ledger item,
     bool isCredit,
     double amount,
     NumberFormat formatter,
@@ -515,7 +731,7 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
     String month = "NOV";
     try {
       // Assuming item.trnDate is String "2023-11-24" or similar
-      final dt = DateTime.parse(item..toString());
+      final dt = DateTime.parse(item.trnDate.toString());
       day = DateFormat('dd').format(dt);
       month = DateFormat('MMM').format(dt).toUpperCase();
     } catch (e) {
