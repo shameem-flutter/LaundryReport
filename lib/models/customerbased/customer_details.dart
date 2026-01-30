@@ -22,6 +22,7 @@ class CustomerListModel {
   dynamic entryDate;
   int? openingBalance;
   int currentBalance;
+  String? currencyCode;
 
   CustomerListModel({
     required this.customerId,
@@ -33,6 +34,7 @@ class CustomerListModel {
     required this.entryDate,
     required this.openingBalance,
     required this.currentBalance,
+    this.currencyCode,
   });
 
   factory CustomerListModel.fromJson(Map<String, dynamic> json) =>
@@ -44,10 +46,12 @@ class CustomerListModel {
         note: json["note"],
         enteredBy: json["entered_by"],
         entryDate: json["entry_date"],
-        openingBalance: json["opening_balance"] == null
-            ? null
-            : (json["opening_balance"] as num).toInt(),
+        openingBalance:
+            json["opening_balance"] == null
+                ? null
+                : (json["opening_balance"] as num).toInt(),
         currentBalance: (json["current_balance"] as num).toInt(),
+        currencyCode: json["currency_code"] ?? json["CurrencyCode"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -60,5 +64,6 @@ class CustomerListModel {
     "entry_date": entryDate,
     "opening_balance": openingBalance,
     "current_balance": currentBalance,
+    "currency_code": currencyCode,
   };
 }

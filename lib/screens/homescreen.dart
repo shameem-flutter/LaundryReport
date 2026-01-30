@@ -58,11 +58,17 @@ class _HomescreenState extends State<Homescreen> {
   final TextEditingController _orderNoController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  final List<String> _statusOptions = [
+  final List<String> _orderStatusOption = [
     "All",
     "Finished",
     "Pending",
     "Cancelled",
+  ];
+  final List<String> _deliveryStatusOption = [
+    "All",
+    "Pending",
+    "Ready for Delivery",
+    "Delivered",
   ];
   String _serviceType = "All";
   String _selectedService = "All";
@@ -243,9 +249,12 @@ class _HomescreenState extends State<Homescreen> {
       ], text: 'Here is the Laundry Report.');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error sharing PDF: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error sharing PDF: $e"),
+            duration: Duration(milliseconds: 900),
+          ),
+        );
       }
     }
   }
@@ -255,9 +264,12 @@ class _HomescreenState extends State<Homescreen> {
     // Check if there is data to print
     if ((_isItemWise && _filteredItems.isEmpty) ||
         (!_isItemWise && _orders.isEmpty)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("No data to print/share!")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("No data to print/share!"),
+          duration: Duration(milliseconds: 800),
+        ),
+      );
       return;
     }
 
@@ -470,6 +482,7 @@ class _HomescreenState extends State<Homescreen> {
     return Scaffold(
       backgroundColor: backgroundColor,
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: "fab_homescreen",
         onPressed: _printOrShare,
         backgroundColor: primaryColor,
         icon: Icon(Icons.print, color: whiteColor),
@@ -636,7 +649,7 @@ class _HomescreenState extends State<Homescreen> {
                         child: _buildDropdownFilter(
                           label: "Order Status:",
                           value: _orderStatus,
-                          options: _statusOptions,
+                          options: _orderStatusOption,
                           onChanged: (v) => setState(() => _orderStatus = v!),
                         ),
                       ),
@@ -658,7 +671,7 @@ class _HomescreenState extends State<Homescreen> {
                         child: _buildDropdownFilter(
                           label: "Delivery Status:",
                           value: _deliveryStatus,
-                          options: _statusOptions,
+                          options: _deliveryStatusOption,
                           onChanged: (v) =>
                               setState(() => _deliveryStatus = v!),
                         ),
@@ -1694,6 +1707,7 @@ class _HomescreenState extends State<Homescreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Failed to Updated DeliveryStatus"),
+            duration: Duration(milliseconds: 900),
             backgroundColor: redColor,
           ),
         );
@@ -1764,9 +1778,13 @@ class _HomescreenState extends State<Homescreen> {
       if (context.mounted) _showDeliveryBoySelectionDialog(context, onSelected);
     } else {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("No delivery boys found")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("No delivery boys found"),
+            duration: Duration(milliseconds: 1000),
+            backgroundColor: redColor,
+          ),
+        );
       }
     }
   }

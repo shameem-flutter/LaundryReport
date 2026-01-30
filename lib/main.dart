@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:laundry/screens/splashscreen.dart';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:laundry/screens/splashscreen.dart';
 import 'package:laundry/services/api_endpoints.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiEndpoints.init();
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {

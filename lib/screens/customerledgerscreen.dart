@@ -117,9 +117,7 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     for (var item in sortedItems) {
       tableData.add([
-        item.trnDate == null
-            ? "-"
-            : DateFormat('dd/MM/yy').format(item.trnDate!),
+        DateFormat('dd/MM/yy').format(item.trnDate!),
         "${item.trnNo}",
 
         item.description,
@@ -281,6 +279,7 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
       },
       child: Scaffold(
         floatingActionButton: FloatingActionButton.extended(
+          heroTag: "fab_ledger",
           icon: Icon(Icons.print, color: whiteColor),
           onPressed: _printOrShare,
           label: Text("Print/Share", style: TextStyle(color: whiteColor)),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:laundry/models/country_model.dart';
 import 'package:laundry/models/customerbased/customer_details.dart';
 import 'package:laundry/screens/homescreen_widgets/home_header.dart';
 import 'package:laundry/services/api_service.dart';
@@ -20,6 +21,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
   // List<CustomerModel> _allCustomers = [];
   List<CustomerListModel> _allCustomers = [];
   List<CustomerListModel> _filteredCustomers = [];
+  List<CountryCodeModel> currencyCode = [];
 
   bool _isLoading = true;
   bool hasSearched = false;
@@ -29,6 +31,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
   void initState() {
     super.initState();
     _fetchCustomers();
+    _getCountryCode();
   }
 
   @override
@@ -53,6 +56,19 @@ class _CustomerscreenState extends State<CustomerScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _getCountryCode() async {
+    try {
+      final result = await _apiService.getCountrycode();
+      if (mounted) {
+        setState(() {
+          currencyCode = result;
+        });
+      }
+    } catch (e) {
+      debugPrint("failed to load currencycode:- $e");
     }
   }
 
@@ -337,7 +353,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
                     ),
                     vertGap(2),
                     Text(
-                      "${customer.currentBalance}", // Add currency symbol if needed
+                      "${customer.currentBalance} ${(currencyCode.isNotEmpty ? currencyCode.first.currencyCode : "")}", // Add currency symbol if needed
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         color: balanceColor,

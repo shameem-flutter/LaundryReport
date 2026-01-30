@@ -1,5 +1,8 @@
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:laundry/providers/nav_provider.dart';
 import 'package:laundry/screens/customer_outstanding.dart';
 import 'package:laundry/screens/customer_screen.dart';
 import 'package:laundry/screens/customerledgerscreen.dart';
@@ -12,22 +15,50 @@ import 'package:laundry/utilities/gapfunc.dart';
 const Color kPrimaryColor = Color(0xFF4A90E2); // Soft Blue
 const Color kBackgroundColor = Color(0xFFF5F7FA); // Very light grey/blue
 
-class Mainscreen extends StatefulWidget {
+class Mainscreen extends ConsumerWidget {
   const Mainscreen({super.key});
 
   @override
-  State<Mainscreen> createState() => _HomeScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final navIndex = ref.watch(navProvider);
+
+    return PopScope(
+      canPop: navIndex == NavIndex.dashboard,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (didPop) {
+          return;
+        }
+        ref.read(navProvider.notifier).state = NavIndex.dashboard;
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        backgroundColor: kBackgroundColor,
+        body: IndexedStack(
+          index: navIndex,
+          children: const [
+            DashboardView(),
+            Homescreen(),
+            CustomerScreen(),
+            Customerledgerscreen(),
+            CustomerOutstanding(),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _HomeScreenState extends State<Mainscreen> {
+class DashboardView extends ConsumerWidget {
+  const DashboardView({super.key});
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            HomeHeader(),
+            const HomeHeader(),
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 25.0,
@@ -57,9 +88,7 @@ class _HomeScreenState extends State<Mainscreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 10),
-
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(20),
@@ -71,10 +100,7 @@ class _HomeScreenState extends State<Mainscreen> {
                     icon: Icons.dashboard_rounded,
                     color: Colors.blueAccent,
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => Homescreen()),
-                      );
+                      ref.read(navProvider.notifier).state = NavIndex.orderList;
                     },
                   ),
                   vertGap(15),
@@ -84,28 +110,17 @@ class _HomeScreenState extends State<Mainscreen> {
                     icon: Icons.person,
                     color: blueColor,
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CustomerScreen(),
-                        ),
-                      );
+                      ref.read(navProvider.notifier).state = NavIndex.customers;
                     },
                   ),
                   vertGap(15),
-
                   _buildMenuCard(
                     title: "Customer Ledger",
                     subtitle: "View payment history",
                     icon: Icons.account_balance_wallet_rounded,
                     color: Colors.teal,
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => Customerledgerscreen(),
-                        ),
-                      );
+                      ref.read(navProvider.notifier).state = NavIndex.ledger;
                     },
                   ),
                   const SizedBox(height: 15),
@@ -115,12 +130,9 @@ class _HomeScreenState extends State<Mainscreen> {
                     icon: Icons.warning_amber_rounded,
                     color: Colors.orangeAccent,
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CustomerOutstanding(),
-                        ),
-                      );
+                      ref
+                          .read(navProvider.notifier)
+                          .state = NavIndex.outstanding;
                     },
                   ),
                 ],

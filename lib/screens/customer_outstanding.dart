@@ -299,7 +299,7 @@ class _CustomerOustandingState extends State<CustomerOutstanding> {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      "${countryCode.isNotEmpty ? countryCode.first.currencyCode : ''}:${item.totalOutstandingAmount.toString()}",
+                                      "${item.totalOutstandingAmount.toString()} ${countryCode.isNotEmpty ? countryCode.first.currencyCode : ''}",
 
                                       style: const TextStyle(
                                         fontSize: 16,
