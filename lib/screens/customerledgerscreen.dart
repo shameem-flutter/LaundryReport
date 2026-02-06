@@ -117,7 +117,9 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     for (var item in sortedItems) {
       tableData.add([
-        DateFormat('dd/MM/yy').format(item.trnDate!),
+        item.trnDate != null
+            ? DateFormat('dd/MM/yy').format(item.trnDate!)
+            : "-",
         "${item.trnNo}",
 
         item.description,

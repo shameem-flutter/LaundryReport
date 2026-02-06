@@ -13,7 +13,15 @@ class HomeHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Image.asset("assets/wasla.png", height: 90, fit: BoxFit.contain),
+          Image.asset(
+            "assets/wasla.png",
+            height: 90,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              print("Error loading image: $error");
+              return const Icon(Icons.broken_image, size: 90, color: Colors.grey);
+            },
+          ),
           IconButton(
             onPressed: () {
               showDialog(

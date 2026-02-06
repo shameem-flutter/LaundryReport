@@ -44,13 +44,28 @@ class _HomescreenState extends State<Homescreen> {
   List<ItemWiseorderreportModel> _itemWise = [];
 
   List<ItemWiseorderreportModel> get _filteredItems {
-    if (_serviceType == "All") return _itemWise;
-    return _itemWise
-        .where(
-          (item) =>
-              item.serviceType.toLowerCase() == _serviceType.toLowerCase(),
-        )
-        .toList();
+    var items = _itemWise;
+
+    // Filter by Service Type
+    if (_serviceType != "All") {
+      items = items
+          .where(
+            (item) =>
+                item.serviceType.toLowerCase() == _serviceType.toLowerCase(),
+          )
+          .toList();
+    }
+
+    // Filter by Order Number (Client-Side Fallback)
+    if (_orderNoController.text.isNotEmpty) {
+      final inputOrderNo = _orderNoController.text.trim();
+      items = items.where((item) {
+        // Compare as string to be safe, or try parsing if item.orderNo is int
+        return item.orderNo.toString() == inputOrderNo;
+      }).toList();
+    }
+
+    return items;
   }
 
   // Controllers are not used in new design directly but keeping them if needed for further logic
@@ -67,7 +82,7 @@ class _HomescreenState extends State<Homescreen> {
   final List<String> _deliveryStatusOption = [
     "All",
     "Pending",
-    "Ready for Delivery",
+    "Partial",
     "Delivered",
   ];
   String _serviceType = "All";
@@ -429,6 +444,7 @@ class _HomescreenState extends State<Homescreen> {
           itemName: itemId,
           serviceType: "All",
           orderNo: _orderNoController.text,
+          orderId: _orderNoController.text,
         );
         setState(() => _itemWise = results);
       } else {
@@ -658,7 +674,7 @@ class _HomescreenState extends State<Homescreen> {
                         child: _buildDropdownFilter(
                           label: "Payment Status:",
                           value: _paymentStatus,
-                          options: const ["All", "Paid", "Unpaid", "Partial"],
+                          options: const ["All", "Paid", "Not Paid"],
                           onChanged: (v) => setState(() => _paymentStatus = v!),
                         ),
                       ),

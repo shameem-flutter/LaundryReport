@@ -7,6 +7,7 @@ import 'package:laundry/models/customerbased/customer_details.dart';
 import 'package:laundry/models/customerbased/customerledger_model.dart';
 import 'package:laundry/models/customeroutstandingmodel.dart';
 import 'package:laundry/models/deliveryboy.dart';
+import 'package:laundry/models/incomeandexpensemodel.dart';
 import 'package:laundry/models/itemwise.dart';
 import 'package:laundry/models/orderreport.dart';
 import 'package:laundry/models/item.dart';
@@ -139,6 +140,7 @@ class ApiService {
     required String deliveryStatus,
     String? customerId,
     String? orderNo,
+    String? orderId,
     String? serviceName,
     String? itemName,
     String? serviceType,
@@ -153,6 +155,7 @@ class ApiService {
           'payment_status': paymentStatus,
           'delivery_status': deliveryStatus,
           if (orderNo != null && orderNo.isNotEmpty) 'order_no': orderNo,
+          if (orderId != null && orderId.isNotEmpty) 'order_id': orderId,
           if (customerId != null && customerId != "All")
             'customer_id': customerId,
           if (serviceName != null) 'service_id': serviceName,
@@ -373,28 +376,69 @@ class ApiService {
   Future<List<CountryCodeModel>> getCountrycode() async {
     try {
       final response = await _dio.get(ApiEndpoints.getCountrycode);
-      
+
       if (response.statusCode == 200) {
         List<dynamic> data;
         if (response.data is List) {
           data = response.data;
         } else if (response.data is Map) {
           // It's a single object, so wrap it in a list
-           data = [response.data];
+          data = [response.data];
         } else {
-           print("Unexpected CountryCode API response: ${response.data}");
-           return [];
+          print("Unexpected CountryCode API response: ${response.data}");
+          return [];
         }
 
         return data
-            .map((json) => CountryCodeModel.fromJson(json as Map<String, dynamic>))
+            .map(
+              (json) => CountryCodeModel.fromJson(json as Map<String, dynamic>),
+            )
             .toList();
       } else {
-        throw Exception("failed to get country code (Status: ${response.statusCode})");
+        throw Exception(
+          "failed to get country code (Status: ${response.statusCode})",
+        );
       }
     } catch (e) {
-       print("Error in getCountrycode: $e");
-       throw Exception("error while parsing country code: $e");
+      print("Error in getCountrycode: $e");
+      throw Exception("error while parsing country code: $e");
+    }
+  }
+
+  Future<List<IncomeandExpenseModel>> getIncomeandExpense({
+    required String startDate,
+    required String endDate,
+    String? paymentMode,
+  }) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.incomeandExpense,
+        queryParameters: {
+          "from_date": startDate,
+          "to_date": endDate,
+          "payment_mode": paymentMode,
+        },
+      );
+      if (response.statusCode == 200) {
+        List<dynamic> data;
+        if (response.data is List) {
+          data = response.data;
+        } else {
+          return [];
+        }
+        return data
+            .map(
+              (json) =>
+                  IncomeandExpenseModel.fromJson(json as Map<String, dynamic>),
+            )
+            .toList();
+      } else {
+        throw Exception(
+          "failed to get income and expense ${response.statusCode}",
+        );
+      }
+    } catch (e) {
+      throw Exception("Error occured while parsing $e");
     }
   }
 }

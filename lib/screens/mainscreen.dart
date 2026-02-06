@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -105,34 +104,20 @@ class DashboardView extends ConsumerWidget {
                   ),
                   vertGap(15),
                   _buildMenuCard(
-                    title: "Customer List",
-                    subtitle: "View customer details",
-                    icon: Icons.person,
-                    color: blueColor,
-                    onTap: () {
-                      ref.read(navProvider.notifier).state = NavIndex.customers;
-                    },
+                    title: "Customer Report",
+                    subtitle: "List, Ledger, Outstanding",
+                    icon: Icons.folder_shared_rounded,
+                    color: Colors.indigo,
+                    onTap: () => _showCustomerReportOptions(context, ref),
                   ),
                   vertGap(15),
                   _buildMenuCard(
-                    title: "Customer Ledger",
-                    subtitle: "View payment history",
-                    icon: Icons.account_balance_wallet_rounded,
-                    color: Colors.teal,
+                    title: "Report",
+                    subtitle: "View sales analysis",
+                    icon: Icons.bar_chart_rounded,
+                    color: Colors.purpleAccent,
                     onTap: () {
-                      ref.read(navProvider.notifier).state = NavIndex.ledger;
-                    },
-                  ),
-                  const SizedBox(height: 15),
-                  _buildMenuCard(
-                    title: "Customer Outstanding",
-                    subtitle: "Track pending amounts",
-                    icon: Icons.warning_amber_rounded,
-                    color: Colors.orangeAccent,
-                    onTap: () {
-                      ref
-                          .read(navProvider.notifier)
-                          .state = NavIndex.outstanding;
+                      _showReportoptions(context, ref);
                     },
                   ),
                 ],
@@ -219,6 +204,156 @@ class DashboardView extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showCustomerReportOptions(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Customer Reports",
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              _buildBottomSheetOption(
+                title: "Customer List",
+                icon: Icons.person,
+                color: kPrimaryColor,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  ref.read(navProvider.notifier).state = NavIndex.customers;
+                },
+              ),
+              const SizedBox(height: 10),
+              _buildBottomSheetOption(
+                title: "Customer Ledger",
+                icon: Icons.account_balance_wallet_rounded,
+                color: Colors.teal,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  ref.read(navProvider.notifier).state = NavIndex.ledger;
+                },
+              ),
+              const SizedBox(height: 10),
+              _buildBottomSheetOption(
+                title: "Customer Outstanding",
+                icon: Icons.warning_amber_rounded,
+                color: Colors.orangeAccent,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  ref.read(navProvider.notifier).state = NavIndex.outstanding;
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showReportoptions(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: whiteColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Reports",
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Icons.close),
+                  ),
+                ],
+              ),
+              vertGap(10),
+              _buildBottomSheetOption(
+                title: "Income and Expense",
+                icon: Icons.trending_up,
+                color: greenColor,
+                onTap: Navigator.of(context).pop,
+              ),
+              vertGap(10),
+              _buildBottomSheetOption(
+                title: "Sales Report",
+                icon: Icons.bar_chart,
+                color: blueColor,
+                onTap: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomSheetOption({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 22),
+      ),
+      title: Text(
+        title,
+        style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500),
+      ),
+      trailing: Icon(
+        Icons.arrow_forward_ios_rounded,
+        size: 16,
+        color: Colors.grey[400],
+      ),
+      onTap: onTap,
     );
   }
 }
