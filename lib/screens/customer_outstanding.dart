@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:laundry/models/country_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laundry/models/customeroutstandingmodel.dart';
+import 'package:laundry/providers/country_provider.dart';
 import 'package:laundry/screens/homescreen_widgets/home_header.dart';
 import 'package:laundry/services/api_service.dart';
 import 'package:laundry/utilities/colors.dart';
+import 'package:laundry/providers/nav_provider.dart';
 import 'package:laundry/utilities/gapfunc.dart';
 
-class CustomerOutstanding extends StatefulWidget {
+class CustomerOutstanding extends ConsumerStatefulWidget {
   const CustomerOutstanding({super.key});
   @override
-  State<CustomerOutstanding> createState() => _CustomerOustandingState();
+  ConsumerState<CustomerOutstanding> createState() =>
+      _CustomerOustandingState();
 }
 
-class _CustomerOustandingState extends State<CustomerOutstanding> {
+class _CustomerOustandingState extends ConsumerState<CustomerOutstanding> {
   ApiService apiService = ApiService();
   List<CustomerOutstandingModel> custOutstanding = [];
   List<CustomerOutstandingModel> filteredCustomer = [];
-  List<CountryCodeModel> countryCode = [];
   TextEditingController? searchController;
   bool hasSearched = false;
   bool isLoading = true;
@@ -25,7 +27,6 @@ class _CustomerOustandingState extends State<CustomerOutstanding> {
   void initState() {
     super.initState();
     getCustOutstanding();
-    _getCountrycode();
   }
 
   @override
@@ -53,27 +54,22 @@ class _CustomerOustandingState extends State<CustomerOutstanding> {
     }
   }
 
-  Future<void> _getCountrycode() async {
-    try {
-      final result = await apiService.getCountrycode();
-      if (mounted) {
-        setState(() {
-          countryCode = result;
-        });
-      }
-    } catch (e) {
-      debugPrint("failed to get country code: $e");
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final countryCodeAsync = ref.watch(countryCodeProvider);
+    final countryCode = countryCodeAsync.value;
+
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       body: SafeArea(
         child: Column(
           children: [
-            const HomeHeader(),
+            HomeHeader(
+              showBack: true,
+              onBack: () {
+                ref.read(navProvider.notifier).state = NavIndex.dashboard;
+              },
+            ),
             Container(
               padding: EdgeInsets.symmetric(horizontal: 10),
               child: Row(
@@ -294,30 +290,30 @@ class _CustomerOustandingState extends State<CustomerOutstanding> {
                                   ),
                                 ),
 
-                                // 3. Outstanding Amount
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      "${item.totalOutstandingAmount.toString()} ${countryCode.isNotEmpty ? countryCode.first.currencyCode : ''}",
-
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.redAccent, // Red for debt
+                                if (countryCode != null)
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        "${item.totalOutstandingAmount} ${countryCode.currencyCode}",
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                          color:
+                                              Colors.redAccent, // Red for debt
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      "Due",
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey.shade400,
-                                        fontWeight: FontWeight.w600,
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        "Due",
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade400,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                    ],
+                                  ),
                               ],
                             ),
                           ),

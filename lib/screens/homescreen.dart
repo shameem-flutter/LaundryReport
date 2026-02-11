@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:laundry/models/customer.dart';
@@ -21,16 +22,17 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:laundry/providers/nav_provider.dart';
 
-class Homescreen extends StatefulWidget {
+class Homescreen extends ConsumerStatefulWidget {
   static const routeName = '/home';
   const Homescreen({super.key});
 
   @override
-  State<Homescreen> createState() => _HomescreenState();
+  ConsumerState<Homescreen> createState() => _HomescreenState();
 }
 
-class _HomescreenState extends State<Homescreen> {
+class _HomescreenState extends ConsumerState<Homescreen> {
   String _orderStatus = "All";
   String _paymentStatus = "All";
   String _deliveryStatus = "All";
@@ -513,7 +515,12 @@ class _HomescreenState extends State<Homescreen> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                const HomeHeader(),
+                HomeHeader(
+                  showBack: true,
+                  onBack: () {
+                    ref.read(navProvider.notifier).state = NavIndex.dashboard;
+                  },
+                ),
                 const TitleBanner(),
                 _buildFilterSection(),
                 if (!_isLoading &&
@@ -850,13 +857,13 @@ class _HomescreenState extends State<Homescreen> {
       ),
       optionsBuilder: (TextEditingValue textEditingValue) {
         final query = textEditingValue.text.toLowerCase().trim();
-        if (query.isEmpty) return ["All"];
+
+        if (query.isEmpty) return const Iterable<String>.empty();
         final matchingCustomers = _customerName
             .map((e) => e.customerName)
             .where((name) => name.toLowerCase().contains(query))
             .toList();
 
-        if (query == 'all') return ["All", ...matchingCustomers];
         if (matchingCustomers.isEmpty) return const Iterable<String>.empty();
         return matchingCustomers;
       },
@@ -872,14 +879,19 @@ class _HomescreenState extends State<Homescreen> {
             return TextFormField(
               controller: textEditingController,
               focusNode: focusNode,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Required';
-                }
-                return null;
-              },
+              // validator: (value) {
+              //   if (value == null || value.trim().isEmpty) {
+              //     return 'Required';
+              //   }
+              //   return null;
+              // },
               onChanged: (value) {
-                // Optional: Update state on every keystroke if needed
+                if (value.trim().isEmpty) {
+                  setState(() {
+                    _selectedCustomer = "All";
+                    _selectedCustomerId = null;
+                  });
+                }
               },
               decoration: InputDecoration(
                 labelText: "Customer name",

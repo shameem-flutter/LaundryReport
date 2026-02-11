@@ -51,4 +51,5 @@ class ApiEndpoints {
   static const String getCountrycode = 'api/v1/integration/country-details/';
   static const String incomeandExpense =
       'api/v1/integration/income-expense-report/';
+  static const String saleReport = 'api/v1/integration/sale-summary-report/';
 }

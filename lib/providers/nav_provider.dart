@@ -9,4 +9,6 @@ class NavIndex {
   static const int customers = 2;
   static const int ledger = 3;
   static const int outstanding = 4;
+  static const int incomeExpense = 5;
+  static const int saleReport = 6;
 }

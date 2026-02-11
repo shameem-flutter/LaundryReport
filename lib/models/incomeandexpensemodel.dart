@@ -14,9 +14,9 @@ class IncomeandExpenseModel {
   DateTime fromDate;
   DateTime toDate;
   String paymentMode;
-  int totalIncome;
-  int totalExpense;
-  int closingBalance;
+  double totalIncome;
+  double totalExpense;
+  double closingBalance;
   List<Report> report;
 
   IncomeandExpenseModel({
@@ -31,15 +31,15 @@ class IncomeandExpenseModel {
 
   factory IncomeandExpenseModel.fromJson(Map<String, dynamic> json) =>
       IncomeandExpenseModel(
-        fromDate: DateTime.parse(json["from_date"]),
-        toDate: DateTime.parse(json["to_date"]),
-        paymentMode: json["payment_mode"],
-        totalIncome: json["total_income"],
-        totalExpense: json["total_expense"],
-        closingBalance: json["closing_balance"],
-        report: List<Report>.from(
-          json["report"].map((x) => Report.fromJson(x)),
-        ),
+        fromDate: DateTime.parse(json["from_date"] ?? DateTime.now().toIso8601String()),
+        toDate: DateTime.parse(json["to_date"] ?? DateTime.now().toIso8601String()),
+        paymentMode: json["payment_mode"] ?? "All",
+        totalIncome: (json["total_income"] as num?)?.toDouble() ?? 0.0,
+        totalExpense: (json["total_expense"] as num?)?.toDouble() ?? 0.0,
+        closingBalance: (json["closing_balance"] as num?)?.toDouble() ?? 0.0,
+        report: json["report"] == null 
+            ? [] 
+            : List<Report>.from(json["report"].map((x) => Report.fromJson(x))),
       );
 
   Map<String, dynamic> toJson() => {
@@ -58,16 +58,16 @@ class IncomeandExpenseModel {
 class Report {
   DateTime trnDate;
   String trnType;
-  int trnNo;
+  double trnNo;
   String description;
   String paymentMode;
-  int income;
-  int expense;
+  double income;
+  double expense;
   String narration;
   String enteredBy;
   DateTime entryDate;
   int sortOrder;
-  int balance;
+  double balance;
 
   Report({
     required this.trnDate,
@@ -85,18 +85,18 @@ class Report {
   });
 
   factory Report.fromJson(Map<String, dynamic> json) => Report(
-    trnDate: DateTime.parse(json["trn_date"]),
-    trnType: json["trn_type"],
-    trnNo: json["trn_no"],
-    description: json["description"],
-    paymentMode: json["payment_mode"],
-    income: json["income"],
-    expense: json["expense"],
-    narration: json["narration"],
-    enteredBy: json["entered_by"],
-    entryDate: DateTime.parse(json["entry_date"]),
-    sortOrder: json["sort_order"],
-    balance: json["balance"],
+    trnDate: DateTime.parse(json["trn_date"] ?? DateTime.now().toIso8601String()),
+    trnType: json["trn_type"] ?? "",
+    trnNo: (json["trn_no"] as num?)?.toDouble() ?? 0.0,
+    description: json["description"] ?? "",
+    paymentMode: json["payment_mode"] ?? "",
+    income: (json["income"] as num?)?.toDouble() ?? 0.0,
+    expense: (json["expense"] as num?)?.toDouble() ?? 0.0,
+    narration: json["narration"] ?? "",
+    enteredBy: json["entered_by"] ?? "",
+    entryDate: DateTime.parse(json["entry_date"] ?? DateTime.now().toIso8601String()),
+    sortOrder: json["sort_order"] ?? 0,
+    balance: (json["balance"] as num?)?.toDouble() ?? 0.0,
   );
 
   Map<String, dynamic> toJson() => {

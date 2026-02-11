@@ -50,7 +50,7 @@ class CustomerListModel {
             json["opening_balance"] == null
                 ? null
                 : (json["opening_balance"] as num).toInt(),
-        currentBalance: (json["current_balance"] as num).toInt(),
+        currentBalance: (json["current_balance"] as num?)?.toInt() ?? 0,
         currencyCode: json["currency_code"] ?? json["CurrencyCode"],
       );
 

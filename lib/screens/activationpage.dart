@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:laundry/screens/mainscreen.dart';
 import 'package:laundry/services/api_service.dart';
 import 'package:laundry/utilities/colors.dart';
+import 'package:laundry/utilities/gapfunc.dart';
 
 class ActivationInstructionsScreen extends StatefulWidget {
   const ActivationInstructionsScreen({super.key});
@@ -232,7 +233,7 @@ class _ActivationInstructionsScreenState
                         ),
                       ),
 
-                      const SizedBox(height: 32),
+                      vertGap(32),
 
                       // Activation Key Input
                       const Text(

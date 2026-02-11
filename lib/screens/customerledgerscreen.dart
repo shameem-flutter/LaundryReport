@@ -13,15 +13,17 @@ import 'package:laundry/utilities/gapfunc.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:laundry/providers/nav_provider.dart';
 
-class Customerledgerscreen extends StatefulWidget {
+class Customerledgerscreen extends ConsumerStatefulWidget {
   const Customerledgerscreen({super.key});
 
   @override
-  State<Customerledgerscreen> createState() => _CustomerledgerscreenState();
+  ConsumerState<Customerledgerscreen> createState() => _CustomerledgerscreenState();
 }
 
-class _CustomerledgerscreenState extends State<Customerledgerscreen> {
+class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
   final ApiService _apiService = ApiService();
   TextEditingController? searchController;
   List<CustomerListModel> allCustomers = [];
@@ -51,7 +53,14 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          errorMessage = e.toString();
+          // Extract meaningful message or show generic error
+          if (e.toString().contains("500")) {
+            errorMessage = "Server Error (500). Please try again later.";
+          } else if (e.toString().contains("Network is unreachable")) {
+            errorMessage = "No Internet Connection.";
+          } else {
+             errorMessage = "Failed to load customers. Please check your connection.";
+          }
           _isLoading = false;
         });
       }
@@ -289,82 +298,92 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
         ),
         backgroundColor: Colors.grey.shade50,
         body: SafeArea(
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: whiteColor,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withValues(alpha: 0.05),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Container(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: whiteColor,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(30),
+                      bottomRight: Radius.circular(30),
                     ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    const HomeHeader(), // Assuming this has its own internal padding
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        children: [
-                          // Search Row
-                          Row(
-                            children: [
-                              Expanded(child: _buildSearchField()),
-                              horiGap(10),
-                              _buildSearchButton(),
-                            ],
-                          ),
-                          vertGap(16),
-                          // Date Filter Row
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _datePickerCard(
-                                  label: "From Date",
-                                  date: _fromDate,
-                                  icon: Icons.calendar_today_outlined,
-                                  onChanged: (d) =>
-                                      setState(() => _fromDate = d),
-                                ),
-                              ),
-                              horiGap(12),
-                              Expanded(
-                                child: _datePickerCard(
-                                  label: "To Date",
-                                  date: _toDate,
-                                  icon: Icons.event_available_outlined,
-                                  onChanged: (d) => setState(() => _toDate = d),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withValues(alpha: 0.05),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      HomeHeader(
+                        showBack: true,
+                        onBack: () {
+                          ref.read(navProvider.notifier).state =
+                              NavIndex.dashboard;
+                        },
+                      ), // Assuming this has its own internal padding
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          children: [
+                            // Search Row
+                            Row(
+                              children: [
+                                Expanded(child: _buildSearchField()),
+                                horiGap(10),
+                                _buildSearchButton(),
+                              ],
+                            ),
+                            vertGap(16),
+                            // Date Filter Row
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _datePickerCard(
+                                    label: "From Date",
+                                    date: _fromDate,
+                                    icon: Icons.calendar_today_outlined,
+                                    onChanged: (d) =>
+                                        setState(() => _fromDate = d),
+                                  ),
+                                ),
+                                horiGap(12),
+                                Expanded(
+                                  child: _datePickerCard(
+                                    label: "To Date",
+                                    date: _toDate,
+                                    icon: Icons.event_available_outlined,
+                                    onChanged: (d) =>
+                                        setState(() => _toDate = d),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
               // --- RESULT SECTION ---
-              Expanded(
-                child: _isLoading
-                    ? Center(
-                        child: CircularProgressIndicator(color: primaryColor),
-                      )
-                    : errorMessage != null
-                    ? _buildErrorState()
-                    : custLedgerData != null
-                    ? getData(custLedgerData!)
-                    : _buildEmptyState(),
-              ),
+              if (_isLoading)
+                SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(color: primaryColor),
+                  ),
+                )
+              else if (errorMessage != null)
+                SliverFillRemaining(child: _buildErrorState())
+              else if (custLedgerData != null)
+                ...getDataSlivers(custLedgerData!)
+              else
+                SliverFillRemaining(child: _buildEmptyState()),
             ],
           ),
         ),
@@ -621,39 +640,40 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
 
   // --- RESULT LIST UI ---
 
-  Widget getData(CustomerLedgerModel ledger) {
+  List<Widget> getDataSlivers(CustomerLedgerModel ledger) {
     final currencyFormat = NumberFormat.simpleCurrency(decimalDigits: 2);
 
-    return Column(
-      children: [
-        // 1. Customer Summary Card
-        Padding(
+    return [
+      // 1. Customer Summary Card
+      SliverToBoxAdapter(
+        child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
           child: _buildHeaderCard(ledger, currencyFormat),
         ),
+      ),
 
-        // 2. Transaction List
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 90),
-            itemCount: ledger.ledger.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final item = ledger.ledger[index];
-              final isCredit = (item.creditAmount ?? 0) > 0;
-              final amount = isCredit ? item.creditAmount : item.receiptAmount;
+      // 2. Transaction List
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 90),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final item = ledger.ledger[index];
+            final isCredit = (item.creditAmount) > 0;
+            final amount = isCredit ? item.creditAmount : item.receiptAmount;
 
-              return _buildTransactionCard(
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildTransactionCard(
                 item,
                 isCredit,
-                amount ?? 0,
+                amount,
                 currencyFormat,
-              );
-            },
-          ),
+              ),
+            );
+          }, childCount: ledger.ledger.length),
         ),
-      ],
-    );
+      ),
+    ];
   }
 
   Widget _buildHeaderCard(CustomerLedgerModel ledger, NumberFormat formatter) {
@@ -727,16 +747,12 @@ class _CustomerledgerscreenState extends State<Customerledgerscreen> {
     double amount,
     NumberFormat formatter,
   ) {
-    // Attempt to parse Date safely
-    String day = "00";
-    String month = "NOV";
-    try {
-      // Assuming item.trnDate is String "2023-11-24" or similar
-      final dt = DateTime.parse(item.trnDate.toString());
-      day = DateFormat('dd').format(dt);
-      month = DateFormat('MMM').format(dt).toUpperCase();
-    } catch (e) {
-      // Fallback if date string is weird
+    String day;
+    String month;
+    if (item.trnDate != null) {
+      day = DateFormat('dd').format(item.trnDate!);
+      month = DateFormat('MMM').format(item.trnDate!).toUpperCase();
+    } else {
       day = "-";
       month = "-";
     }

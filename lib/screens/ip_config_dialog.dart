@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:laundry/providers/country_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:laundry/screens/licensekey.dart';
 import 'package:laundry/screens/mainscreen.dart';
 import 'package:laundry/services/api_endpoints.dart';
 import 'package:laundry/services/api_service.dart';
 
-class IpConfigDialog extends StatefulWidget {
+class IpConfigDialog extends ConsumerStatefulWidget {
   const IpConfigDialog({super.key});
 
   @override
-  State<IpConfigDialog> createState() => _IpConfigDialogState();
+  ConsumerState<IpConfigDialog> createState() => _IpConfigDialogState();
 }
 
-class _IpConfigDialogState extends State<IpConfigDialog> {
+class _IpConfigDialogState extends ConsumerState<IpConfigDialog> {
   final ApiService _apiService = ApiService();
   final _hostController = TextEditingController();
   String _selectedProtocol = 'http://';
@@ -148,6 +150,9 @@ class _IpConfigDialogState extends State<IpConfigDialog> {
                             _selectedProtocol,
                             _hostController.text.trim(),
                           );
+                          
+                          // Invalidate the provider to force a refresh with new IP
+                          ref.invalidate(countryCodeProvider);
 
                           final bool isActivated = await _apiService
                               .checkLicenseStatus();

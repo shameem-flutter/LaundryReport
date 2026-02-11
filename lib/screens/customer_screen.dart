@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:laundry/models/country_model.dart';
 import 'package:laundry/models/customerbased/customer_details.dart';
+import 'package:laundry/providers/country_provider.dart';
 import 'package:laundry/screens/homescreen_widgets/home_header.dart';
 import 'package:laundry/services/api_service.dart';
 import 'package:laundry/utilities/colors.dart';
 import 'package:laundry/utilities/gapfunc.dart';
+import 'package:laundry/providers/nav_provider.dart';
 
-class CustomerScreen extends StatefulWidget {
+class CustomerScreen extends ConsumerStatefulWidget {
   const CustomerScreen({super.key});
   @override
-  State<CustomerScreen> createState() => _CustomerscreenState();
+  ConsumerState<CustomerScreen> createState() => _CustomerscreenState();
 }
 
-class _CustomerscreenState extends State<CustomerScreen> {
+class _CustomerscreenState extends ConsumerState<CustomerScreen> {
   final ApiService _apiService = ApiService();
 
   TextEditingController? _searchController;
@@ -21,7 +24,6 @@ class _CustomerscreenState extends State<CustomerScreen> {
   // List<CustomerModel> _allCustomers = [];
   List<CustomerListModel> _allCustomers = [];
   List<CustomerListModel> _filteredCustomers = [];
-  List<CountryCodeModel> currencyCode = [];
 
   bool _isLoading = true;
   bool hasSearched = false;
@@ -31,7 +33,6 @@ class _CustomerscreenState extends State<CustomerScreen> {
   void initState() {
     super.initState();
     _fetchCustomers();
-    _getCountryCode();
   }
 
   @override
@@ -59,18 +60,6 @@ class _CustomerscreenState extends State<CustomerScreen> {
     }
   }
 
-  Future<void> _getCountryCode() async {
-    try {
-      final result = await _apiService.getCountrycode();
-      if (mounted) {
-        setState(() {
-          currencyCode = result;
-        });
-      }
-    } catch (e) {
-      debugPrint("failed to load currencycode:- $e");
-    }
-  }
 
   void _performSearch() {
     final query = _searchController?.text.trim() ?? "";
@@ -104,13 +93,21 @@ class _CustomerscreenState extends State<CustomerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final countryCodeAsync = ref.watch(countryCodeProvider);
+    final countryCode = countryCodeAsync.value;
+
     return Scaffold(
       backgroundColor: backgroundColor,
 
       body: SafeArea(
         child: Column(
           children: [
-            HomeHeader(),
+            HomeHeader(
+              showBack: true,
+              onBack: () {
+                ref.read(navProvider.notifier).state = NavIndex.dashboard;
+              },
+            ),
             Container(
               padding: const EdgeInsets.all(16.0),
               child: Row(
@@ -240,7 +237,10 @@ class _CustomerscreenState extends State<CustomerScreen> {
                       padding: const EdgeInsets.all(12),
                       itemCount: _filteredCustomers.length,
                       itemBuilder: (context, index) {
-                        return _buildCustomerCard(_filteredCustomers[index]);
+                        return _buildCustomerCard(
+                          _filteredCustomers[index],
+                          countryCode,
+                        );
                       },
                     ),
             ),
@@ -250,7 +250,10 @@ class _CustomerscreenState extends State<CustomerScreen> {
     );
   }
 
-  Widget _buildCustomerCard(CustomerListModel customer) {
+  Widget _buildCustomerCard(
+    CustomerListModel customer,
+    CountryCodeModel? countryCode,
+  ) {
     // Define colors locally or grab from your theme
     final bool hasBalance = (customer.currentBalance) > 0;
     final Color balanceColor = hasBalance ? Colors.red.shade700 : Colors.teal;
@@ -353,7 +356,7 @@ class _CustomerscreenState extends State<CustomerScreen> {
                     ),
                     vertGap(2),
                     Text(
-                      "${customer.currentBalance} ${(currencyCode.isNotEmpty ? currencyCode.first.currencyCode : "")}", // Add currency symbol if needed
+                      "${customer.currentBalance} ${(countryCode?.currencyCode)}", // Add currency symbol if needed
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         color: balanceColor,

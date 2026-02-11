@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dio/dio.dart';
 import 'package:laundry/models/country_model.dart';
@@ -11,18 +12,21 @@ import 'package:laundry/models/incomeandexpensemodel.dart';
 import 'package:laundry/models/itemwise.dart';
 import 'package:laundry/models/orderreport.dart';
 import 'package:laundry/models/item.dart';
+import 'package:laundry/models/salereportmodel.dart';
 import 'package:laundry/models/services.dart';
 import 'package:laundry/services/api_endpoints.dart';
 
 class ApiService {
   Dio get _dio {
-    return Dio(
+    final dio = Dio(
       BaseOptions(
         baseUrl: ApiEndpoints.baseUrl,
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
       ),
     );
+    dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: false)); // Enable logging
+    return dio;
   }
 
   Future<bool> checkLicenseStatus() async {
@@ -300,7 +304,7 @@ class ApiService {
         final List<dynamic> data = response.data;
         return data.map((json) => CustomerListModel.fromJson(json)).toList();
       } else {
-        throw Exception("failed to fetch customer details:$e");
+        throw Exception("failed to fetch customer details: ${response.statusCode}");
       }
     } catch (e) {
       throw Exception("error fetching customer details:$e");
@@ -373,39 +377,52 @@ class ApiService {
     }
   }
 
-  Future<List<CountryCodeModel>> getCountrycode() async {
+  Future<CountryCodeModel?> getCountrycode() async {
     try {
       final response = await _dio.get(ApiEndpoints.getCountrycode);
 
       if (response.statusCode == 200) {
-        List<dynamic> data;
-        if (response.data is List) {
-          data = response.data;
-        } else if (response.data is Map) {
-          // It's a single object, so wrap it in a list
-          data = [response.data];
-        } else {
-          print("Unexpected CountryCode API response: ${response.data}");
-          return [];
+        if (response.data is Map<String, dynamic>) {
+          final model = CountryCodeModel.fromJson(response.data);
+          _saveCountryCodeToCache(model);
+          return model;
         }
-
-        return data
-            .map(
-              (json) => CountryCodeModel.fromJson(json as Map<String, dynamic>),
-            )
-            .toList();
-      } else {
-        throw Exception(
-          "failed to get country code (Status: ${response.statusCode})",
-        );
       }
+      return null;
     } catch (e) {
-      print("Error in getCountrycode: $e");
-      throw Exception("error while parsing country code: $e");
+      print("Error fetching country code: $e");
+      return null;
     }
   }
 
-  Future<List<IncomeandExpenseModel>> getIncomeandExpense({
+  Future<void> _saveCountryCodeToCache(CountryCodeModel data) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Use baseUrl as part of the key to handle multiple servers/IPs
+      final key = 'country_code_${ApiEndpoints.baseUrl}';
+      final jsonString = countryCodeModelToJson(data); // Using the helper from model file
+      await prefs.setString(key, jsonString);
+    } catch (e) {
+      print('Error saving country code to cache: $e');
+    }
+  }
+
+  Future<CountryCodeModel?> getCachedCountryCode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'country_code_${ApiEndpoints.baseUrl}';
+      final jsonString = prefs.getString(key);
+      if (jsonString != null) {
+        return countryCodeModelFromJson(jsonString); // Using the helper from model file
+      }
+      return null;
+    } catch (e) {
+      print('Error reading country code from cache: $e');
+      return null;
+    }
+  }
+
+  Future<IncomeandExpenseModel> getIncomeandExpense({
     required String startDate,
     required String endDate,
     String? paymentMode,
@@ -420,18 +437,7 @@ class ApiService {
         },
       );
       if (response.statusCode == 200) {
-        List<dynamic> data;
-        if (response.data is List) {
-          data = response.data;
-        } else {
-          return [];
-        }
-        return data
-            .map(
-              (json) =>
-                  IncomeandExpenseModel.fromJson(json as Map<String, dynamic>),
-            )
-            .toList();
+        return IncomeandExpenseModel.fromJson(response.data);
       } else {
         throw Exception(
           "failed to get income and expense ${response.statusCode}",
@@ -439,6 +445,25 @@ class ApiService {
       }
     } catch (e) {
       throw Exception("Error occured while parsing $e");
+    }
+  }
+
+  Future<SalereportModel> getSalereport({
+    required String fromDate,
+    required String toDate,
+  }) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.saleReport,
+        queryParameters: {"from_date": fromDate, "to_date": toDate},
+      );
+      if (response.statusCode == 200) {
+        return SalereportModel.fromJson(response.data);
+      } else {
+        throw Exception("failed to fetch data");
+      }
+    } catch (e) {
+      throw Exception("error occured while parsing data:$e");
     }
   }
 }

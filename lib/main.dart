@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      title: 'Laundry Report',
+      title: 'WaslaSoft Laundry',
       debugShowCheckedModeBanner: false,
       home: SplashScreen(),
     );

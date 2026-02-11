@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:laundry/providers/country_provider.dart';
 import 'package:laundry/providers/nav_provider.dart';
 import 'package:laundry/screens/customer_outstanding.dart';
 import 'package:laundry/screens/customer_screen.dart';
 import 'package:laundry/screens/customerledgerscreen.dart';
 import 'package:laundry/screens/homescreen.dart';
 import 'package:laundry/screens/homescreen_widgets/home_header.dart';
+import 'package:laundry/screens/sale_report_screen.dart';
+import 'package:laundry/screens/income_expense.dart';
+
 import 'package:laundry/utilities/colors.dart';
 import 'package:laundry/utilities/gapfunc.dart';
 
-// Make sure you have these standard colors defined or use these defaults
-const Color kPrimaryColor = Color(0xFF4A90E2); // Soft Blue
-const Color kBackgroundColor = Color(0xFFF5F7FA); // Very light grey/blue
+const Color kPrimaryColor = Color(0xFF4A90E2);
+const Color kBackgroundColor = Color(0xFFF5F7FA);
 
+/// =======================
+/// MAIN SCREEN
+/// =======================
 class Mainscreen extends ConsumerWidget {
   const Mainscreen({super.key});
 
@@ -24,10 +30,9 @@ class Mainscreen extends ConsumerWidget {
     return PopScope(
       canPop: navIndex == NavIndex.dashboard,
       onPopInvokedWithResult: (bool didPop, dynamic result) {
-        if (didPop) {
-          return;
+        if (!didPop) {
+          ref.read(navProvider.notifier).state = NavIndex.dashboard;
         }
-        ref.read(navProvider.notifier).state = NavIndex.dashboard;
       },
       child: Scaffold(
         resizeToAvoidBottomInset: false,
@@ -40,6 +45,8 @@ class Mainscreen extends ConsumerWidget {
             CustomerScreen(),
             Customerledgerscreen(),
             CustomerOutstanding(),
+            IncomeExpense(),
+            SalereportScreen(),
           ],
         ),
       ),
@@ -47,11 +54,22 @@ class Mainscreen extends ConsumerWidget {
   }
 }
 
-class DashboardView extends ConsumerWidget {
+/// =======================
+/// DASHBOARD VIEW
+/// =======================
+class DashboardView extends ConsumerStatefulWidget {
   const DashboardView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends ConsumerState<DashboardView> {
+
+  @override
+  Widget build(BuildContext context) {
+    final countryCodeAsync = ref.watch(countryCodeProvider);
+
     return Scaffold(
       backgroundColor: kBackgroundColor,
       body: SafeArea(
@@ -68,19 +86,68 @@ class DashboardView extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Dashboard",
-                      style: GoogleFonts.poppins(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                    countryCodeAsync.when(
+                      data: (countryCode) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            countryCode != null
+                                ? "${countryCode.companyName} Dashboard"
+                                : "Dashboard",
+                            style: GoogleFonts.poppins(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            "Select an option to proceed",
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    Text(
-                      "Select an option to proceed",
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey[600],
+                      loading: () => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Dashboard",
+                            style: GoogleFonts.poppins(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            "Select an option to proceed",
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      error: (_, __) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Dashboard",
+                            style: GoogleFonts.poppins(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            "Select an option to proceed",
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -108,7 +175,7 @@ class DashboardView extends ConsumerWidget {
                     subtitle: "List, Ledger, Outstanding",
                     icon: Icons.folder_shared_rounded,
                     color: Colors.indigo,
-                    onTap: () => _showCustomerReportOptions(context, ref),
+                    onTap: () => _showCustomerReportOptions(context),
                   ),
                   vertGap(15),
                   _buildMenuCard(
@@ -116,9 +183,7 @@ class DashboardView extends ConsumerWidget {
                     subtitle: "View sales analysis",
                     icon: Icons.bar_chart_rounded,
                     color: Colors.purpleAccent,
-                    onTap: () {
-                      _showReportoptions(context, ref);
-                    },
+                    onTap: () => _showReportOptions(context),
                   ),
                 ],
               ),
@@ -129,7 +194,9 @@ class DashboardView extends ConsumerWidget {
     );
   }
 
-  // Helper Widget for consistent Modern Cards
+  /// =======================
+  /// MENU CARD
+  /// =======================
   Widget _buildMenuCard({
     required String title,
     required String subtitle,
@@ -146,7 +213,7 @@ class DashboardView extends ConsumerWidget {
             color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 2,
             blurRadius: 10,
-            offset: const Offset(0, 4), // Shadow position
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -159,7 +226,6 @@ class DashboardView extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
             child: Row(
               children: [
-                // Icon Box
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -169,7 +235,6 @@ class DashboardView extends ConsumerWidget {
                   child: Icon(icon, color: color, size: 28),
                 ),
                 const SizedBox(width: 20),
-                // Text Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,7 +244,6 @@ class DashboardView extends ConsumerWidget {
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -193,7 +257,6 @@ class DashboardView extends ConsumerWidget {
                     ],
                   ),
                 ),
-                // Arrow Icon
                 Icon(
                   Icons.arrow_forward_ios_rounded,
                   color: Colors.grey[300],
@@ -207,45 +270,29 @@ class DashboardView extends ConsumerWidget {
     );
   }
 
-  void _showCustomerReportOptions(BuildContext context, WidgetRef ref) {
+  /// =======================
+  /// CUSTOMER OPTIONS
+  /// =======================
+  void _showCustomerReportOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
+      builder: (_) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Customer Reports",
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
               _buildBottomSheetOption(
                 title: "Customer List",
                 icon: Icons.person,
                 color: kPrimaryColor,
                 onTap: () {
-                  Navigator.of(context).pop();
+                  Navigator.pop(context);
                   ref.read(navProvider.notifier).state = NavIndex.customers;
                 },
               ),
@@ -255,7 +302,7 @@ class DashboardView extends ConsumerWidget {
                 icon: Icons.account_balance_wallet_rounded,
                 color: Colors.teal,
                 onTap: () {
-                  Navigator.of(context).pop();
+                  Navigator.pop(context);
                   ref.read(navProvider.notifier).state = NavIndex.ledger;
                 },
               ),
@@ -265,11 +312,10 @@ class DashboardView extends ConsumerWidget {
                 icon: Icons.warning_amber_rounded,
                 color: Colors.orangeAccent,
                 onTap: () {
-                  Navigator.of(context).pop();
+                  Navigator.pop(context);
                   ref.read(navProvider.notifier).state = NavIndex.outstanding;
                 },
               ),
-              const SizedBox(height: 10),
             ],
           ),
         ),
@@ -277,49 +323,40 @@ class DashboardView extends ConsumerWidget {
     );
   }
 
-  void _showReportoptions(BuildContext context, WidgetRef ref) {
+  /// =======================
+  /// REPORT OPTIONS
+  /// =======================
+  void _showReportOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
+      builder: (_) => Container(
         decoration: BoxDecoration(
           color: whiteColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Reports",
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: Icon(Icons.close),
-                  ),
-                ],
-              ),
-              vertGap(10),
               _buildBottomSheetOption(
                 title: "Income and Expense",
                 icon: Icons.trending_up,
                 color: greenColor,
-                onTap: Navigator.of(context).pop,
+                onTap: () {
+                  Navigator.pop(context);
+                  ref.read(navProvider.notifier).state = NavIndex.incomeExpense;
+                },
               ),
               vertGap(10),
               _buildBottomSheetOption(
                 title: "Sales Report",
                 icon: Icons.bar_chart,
                 color: blueColor,
-                onTap: () => Navigator.of(context).pop(),
+                onTap: () {
+                  Navigator.pop(context);
+                  ref.read(navProvider.notifier).state = NavIndex.saleReport;
+                },
               ),
             ],
           ),
