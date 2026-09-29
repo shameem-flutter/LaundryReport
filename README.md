@@ -1,93 +1,168 @@
-# repo_template
+# Laundry Application
+ 
 
 
+## 🧰 Git User Manual
 
-## Getting started
+### 🚀 Getting Started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.com/technostore360-live/repo_template.git
-git branch -M main
-git push -uf origin main
+#### 🔄 Default Branch
+```bash
+    git checkout Development
 ```
 
-## Integrate with your tools
+---
 
-* [Set up project integrations](https://gitlab.com/technostore360-live/repo_template/-/settings/integrations)
+## 🧪 Branching Strategy
 
-## Collaborate with your team
+We follow a structured branching model with the following types:
 
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+- [x] **Development** – Default working branch  
+- [x] **feature/** – For adding new features  
+- [x] **bugfix/** – For fixing identified bugs  
+- [x] **release/** – For releasing stable builds  
 
-## Test and Deploy
+![Branch Workflow](https://raw.githubusercontent.com/git-guides/git-flow/main/images/git-flow-branches.png)
 
-Use the built-in continuous integration in GitLab.
+---
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+## ✨ Adding a New Feature
+```bash
+    # Step 1: Checkout the default branch
+        git checkout Development
+        git pull
 
-***
+    # Step 2: Create a new feature branch
+        git checkout -b feature/short-feature-name
 
-# Editing this README
+    # Step 3: Write your code and commit
+        git add -A
+        git commit -m "Added: short description"
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+    # Step 4: Push and create Merge Request
+        git push origin feature/short-feature-name
+```
 
-## Suggestions for a good README
+➡ Go to **GitLab ➝ Merge Requests ➝ New Merge Request**  
+➡ Choose your source branch (`feature/short-feature-name`) and target branch (`Development`)  
+➡ Fill in the title and description
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+**Then:**
+- 🧑‍💼 **Select a Reviewer** from the dropdown list (person who will review your code)
+- 🙋 **Assign Yourself** in the **Assignee** dropdown
 
-## Name
-Choose a self-explaining name for your project.
+➡ Click **Submit Merge Request**
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+➡ Wait for **Maintainer approval and merge**
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```bash
+    # Step 5: After merge, update local Development branch
+        git checkout Development
+        git pull
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+---
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+## 🐞 Fixing a Bug
+```bash
+    # Step 1: Checkout the default branch
+        git checkout Development
+        git pull
+    
+    # Step 2: Create a new bugfix branch
+        git checkout -b bugfix/short-bug-name
+    
+    # fix the issue...
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+    # Step 3: Write your code and commit
+        git add -A
+        git commit -m "Fix: short description of bug fix"
+        
+    # Step 4: Push and create Merge Request
+        git push origin bugfix/short-bug-name
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+➡ Go to **GitLab ➝ Merge Requests ➝ New Merge Request**  
+➡ Choose your source branch (`bugfix/short-bug-name`) and target branch (`Development`)  
+➡ Fill in the title and description
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+**Then:**
+- 🧑‍💼 **Select a Reviewer** from the dropdown list (person who will review your code)
+- 🙋 **Assign Yourself** in the **Assignee** dropdown
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+➡ Click **Submit Merge Request**
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+➡ Wait for **Maintainer approval and merge**
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+```bash
+    # Step 5: After merge, update local Development branch
+        git checkout Development
+        git pull
+```
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+---
 
-## License
-For open source projects, say how it is licensed.
+## 🚢 Creating a Release
+#### Only maintainer have permissions to go with this step
+```bash
+    # Step 1: Checkout the default branch
+        git checkout Development
+        git pull
+    
+    # Step 2: Create a new release branch
+        git checkout -b release/1.0.0
+        
+        # ensure no pending bugs
+        
+    # Step 3: If no bugs in your code then commit
+        git add -A
+        git commit -m "Release: version 1.0.0"
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+    # Step 4: Push and create Merge Request
+        git push origin release/1.0.0
+```
+
+
+---
+
+## 🔁 Merge Request Flow
+
+| Action | Who |
+|--------|-----|
+| Create MR | Developer |
+| Review + Approve | Maintainer |
+| Merge | Maintainer |
+| Pull latest changes | Developer (post-merge) |
+
+✅ Developers cannot push directly to protected branches (`Development`, `Production`, etc.)  
+✅ Only Maintainers can approve and merge MRs.
+
+---
+
+
+## 📌 Best Practices
+
+- Always pull the latest `Development` before creating new branches
+- Keep commit messages meaningful and concise
+- Use Merge Requests for **all changes**
+- Do **not force push** to protected branches
+
+## ⚠️ Important
+
+**One Branch = One Task**
+
+- Do **not** work on multiple tasks in the same branch.
+- Every feature, bug fix, or improvement must have its **own dedicated branch**.
+- Complete **one task → Create Merge Request → Get it reviewed & merged → Pull the latest `Development` → Create a new branch for the next task**.
+- Keeping each branch focused makes Merge Requests meaningful, simplifies code reviews, testing, and future maintenance.
+
+
+---
+
+
+### 🙌 Final Note
+
+> **"Every line of code you write shapes the future of this project. Let's build with purpose, review with care, and grow together as a team of excellence. Your contribution matters — not just to the repo, but to the mission behind it."**
+
+**Happy coding, and keep making magic with your commits!**  
+— Maintained with care by **The Febno Technologies Team** <img src="https://www.api.febno.com/uploads/logo_1_09eb3f551f.webp" alt="Febno Technologies" width="22" valign="middle">
