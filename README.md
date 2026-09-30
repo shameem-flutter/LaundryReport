@@ -1,6 +1,7 @@
 # Laundry Application
  
 
+A new Flutter project.
 
 ## 🧰 Git User Manual
 
