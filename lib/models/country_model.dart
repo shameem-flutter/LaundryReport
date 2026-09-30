@@ -16,6 +16,7 @@ class CountryCodeModel {
   final String currencyCode;
   final String currencyNameAr;
   final String companyName;
+  final String address;
 
   CountryCodeModel({
     required this.country,
@@ -23,6 +24,7 @@ class CountryCodeModel {
     required this.currencyCode,
     required this.currencyNameAr,
     required this.companyName,
+    required this.address,
   });
 
   factory CountryCodeModel.fromJson(Map<String, dynamic> json) =>
@@ -32,6 +34,7 @@ class CountryCodeModel {
         currencyCode: json["currency_code"]?.toString() ?? "",
         currencyNameAr: json["currency_name_ar"]?.toString() ?? "",
         companyName: json["company_name"]?.toString() ?? "",
+        address: json["address"]?.toString() ?? "",
       );
 
   Map<String, dynamic> toJson() => {
@@ -40,6 +43,7 @@ class CountryCodeModel {
     "currency_code": currencyCode,
     "currency_name_ar": currencyNameAr,
     "company_name": companyName,
+    "address": address,
   };
 
   CountryCodeModel copyWith({
@@ -48,6 +52,7 @@ class CountryCodeModel {
     String? currencyCode,
     String? currencyNameAr,
     String? companyName,
+    String? address,
   }) {
     return CountryCodeModel(
       country: country ?? this.country,
@@ -55,6 +60,7 @@ class CountryCodeModel {
       currencyCode: currencyCode ?? this.currencyCode,
       currencyNameAr: currencyNameAr ?? this.currencyNameAr,
       companyName: companyName ?? this.companyName,
+      address: address ?? this.address,
     );
   }
 }

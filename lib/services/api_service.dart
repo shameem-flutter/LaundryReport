@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dio/dio.dart';
@@ -17,29 +18,53 @@ import 'package:laundry/models/services.dart';
 import 'package:laundry/services/api_endpoints.dart';
 
 class ApiService {
+  static bool? _cachedLicenseStatus;
+  static DateTime? _lastLicenseCheck;
+
   Dio get _dio {
     final dio = Dio(
       BaseOptions(
         baseUrl: ApiEndpoints.baseUrl,
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+        headers: {
+          'Accept-Encoding': 'gzip, deflate, br',
+        },
       ),
     );
-    dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: false)); // Enable logging
+    if (kDebugMode) {
+      dio.interceptors.add(
+        LogInterceptor(
+          requestHeader: true,
+          requestBody: true,
+          responseHeader: false,
+          responseBody: false,
+          error: true,
+        ),
+      );
+    }
     return dio;
   }
 
-  Future<bool> checkLicenseStatus() async {
+  Future<bool> checkLicenseStatus({bool forceRefresh = false}) async {
+    if (!forceRefresh &&
+        _cachedLicenseStatus != null &&
+        _lastLicenseCheck != null &&
+        DateTime.now().difference(_lastLicenseCheck!) < const Duration(minutes: 5)) {
+      return _cachedLicenseStatus!;
+    }
     try {
       final response = await _dio.get(ApiEndpoints.checkLicense);
       if (response.statusCode == 200) {
         final data = response.data;
-        return data['status'] == 'active';
+        _cachedLicenseStatus = data['status'] == 'active';
+        _lastLicenseCheck = DateTime.now();
+        return _cachedLicenseStatus!;
       }
       return false;
     } catch (e) {
       print('Error checking license status: $e');
-      return false;
+      return _cachedLicenseStatus ?? false;
     }
   }
 
@@ -96,7 +121,7 @@ class ApiService {
     }
   }
 
-  Future<List<OrderReportModel>> fetchOrderReport({
+  Future<OrderReportResponse> fetchOrderReport({
     required String startDate,
     required String endDate,
     required String orderStatus,
@@ -104,7 +129,11 @@ class ApiService {
     required String deliveryStatus,
     String? customerId,
     String? orderNo,
-    String? orderId, // 1. Added the optional parameter here
+    String? orderId,
+    String? enteredBy,
+    String? paymentReceivedBy,
+    int page = 1,
+    int? pageSize,
   }) async {
     try {
       final response = await _dio.get(
@@ -115,19 +144,22 @@ class ApiService {
           'order_status': orderStatus,
           'payment_status': paymentStatus,
           'delivery_status': deliveryStatus,
-          // 2. Added logic to include it in the API request
           if (orderNo != null && orderNo.isNotEmpty) 'order_no': orderNo,
           if (orderId != null && orderId.isNotEmpty) 'order_id': orderId,
           if (customerId != null &&
               customerId.isNotEmpty &&
               customerId != "All")
             'customer_id': customerId,
+          if (enteredBy != null && enteredBy.isNotEmpty) 'entered_by': enteredBy,
+          if (paymentReceivedBy != null && paymentReceivedBy.isNotEmpty)
+            'payment_received_by': paymentReceivedBy,
+          'page': page,
+          if (pageSize != null) 'page_size': pageSize,
         },
       );
       //   print('🔍 API URL: ${response.realUri}');
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
-        return data.map((json) => OrderReportModel.fromJson(json)).toList();
+        return OrderReportResponse.fromJson(response.data);
       } else {
         throw Exception('Failed to load order report');
       }
@@ -170,7 +202,12 @@ class ApiService {
       print('🔍 API URL (ItemWise): ${response.realUri}');
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
+        final dynamic rawData = response.data;
+        final List<dynamic> data = rawData is List
+            ? rawData
+            : (rawData is Map && rawData['results'] is List
+                ? rawData['results']
+                : []);
         return data
             .map((json) => ItemWiseorderreportModel.fromJson(json))
             .toList();

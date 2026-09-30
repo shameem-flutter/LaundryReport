@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'dart:typed_data';
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -12,15 +10,16 @@ import 'package:laundry/utilities/colors.dart';
 import 'package:laundry/utilities/gapfunc.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:laundry/providers/nav_provider.dart';
+import 'package:laundry/providers/country_provider.dart';
 
 class Customerledgerscreen extends ConsumerStatefulWidget {
   const Customerledgerscreen({super.key});
 
   @override
-  ConsumerState<Customerledgerscreen> createState() => _CustomerledgerscreenState();
+  ConsumerState<Customerledgerscreen> createState() =>
+      _CustomerledgerscreenState();
 }
 
 class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
@@ -59,7 +58,8 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
           } else if (e.toString().contains("Network is unreachable")) {
             errorMessage = "No Internet Connection.";
           } else {
-             errorMessage = "Failed to load customers. Please check your connection.";
+            errorMessage =
+                "Failed to load customers. Please check your connection.";
           }
           _isLoading = false;
         });
@@ -89,6 +89,18 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
     }
   }
 
+  String _getLedgerPdfName() {
+    final fromStr = DateFormat('dd_MM_yyyy').format(_fromDate);
+    final toStr = DateFormat('dd_MM_yyyy').format(_toDate);
+    final dateRangeStr = '${fromStr}_to_$toStr';
+    final custName =
+        selectedCustomer?.customerName.replaceAll(RegExp(r'\s+'), '_') ?? '';
+    if (custName.isNotEmpty) {
+      return 'CustomerLedger_${custName}_$dateRangeStr';
+    }
+    return 'CustomerLedger_$dateRangeStr';
+  }
+
   Future<Uint8List> _generatePdf(PdfPageFormat format) async {
     final pdf = pw.Document();
 
@@ -98,9 +110,22 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
 
     // 1. Determine which data to print
     final custLedgerPrint = custLedgerData;
-    final String title = "Order Report";
+    final String title = selectedCustomer != null
+        ? "Customer Ledger (${selectedCustomer!.customerName})"
+        : "Customer Ledger Report";
     final String dateRange =
         "${DateFormat('dd/MM/yyyy').format(_fromDate)} - ${DateFormat('dd/MM/yyyy').format(_toDate)}";
+
+    var countryModel = ref.read(countryCodeProvider).value;
+    if (countryModel == null ||
+        (countryModel.companyName.isEmpty && countryModel.address.isEmpty)) {
+      try {
+        countryModel = await _apiService.getCachedCountryCode();
+        countryModel ??= await _apiService.getCountrycode();
+      } catch (_) {}
+    }
+    final companyName = countryModel?.companyName ?? '';
+    final companyAddress = countryModel?.address ?? '';
 
     // 2. Build Data Rows
     final List<List<String>> tableData = [];
@@ -150,20 +175,55 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
           return [
             pw.Header(
               level: 0,
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            companyName.isNotEmpty
+                                ? companyName.trim()
+                                : "Century Laundry & Dry Cleaning",
+                            style: pw.TextStyle(
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.blue900,
+                            ),
+                          ),
+                          if (companyAddress.isNotEmpty) ...[
+                            pw.SizedBox(height: 2),
+                            pw.Text(
+                              companyAddress
+                                  .replaceAll('\r\n', ', ')
+                                  .replaceAll('\n', ', '),
+                              style: const pw.TextStyle(
+                                fontSize: 9,
+                                color: PdfColors.grey700,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      pw.Text(
+                        "Date: $dateRange",
+                        style: const pw.TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 6),
                   pw.Text(
                     title,
                     style: pw.TextStyle(
-                      fontSize: 24,
+                      fontSize: 14,
                       fontWeight: pw.FontWeight.bold,
                     ),
                   ),
-                  pw.Text(
-                    "Date: $dateRange",
-                    style: const pw.TextStyle(fontSize: 14),
-                  ),
+                  pw.SizedBox(height: 4),
                 ],
               ),
             ),
@@ -194,7 +254,8 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
             pw.Align(
               alignment: pw.Alignment.centerRight,
               child: pw.Text(
-                "Closing Balance: ${custLedgerPrint!.closingBalance}",
+                "Closing Balance: ${custLedgerPrint!.closingBalance} ${ref.read(countryCodeProvider).value?.currencyCode ?? ''}"
+                    .trim(),
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
               ),
             ),
@@ -209,24 +270,14 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
   Future<void> _sharePdf(PdfPageFormat format) async {
     try {
       final pdfBytes = await _generatePdf(format);
-      final directory = await getTemporaryDirectory();
-      final file = File(
-        '${directory.path}/CustomerLedger${DateFormat('dd_MM_yyyy').format(DateTime.now())}.pdf',
-      );
-      await file.writeAsBytes(pdfBytes);
-
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          text: 'Here is the Laundry Report.',
-        ),
-      );
+      final fileName = '${_getLedgerPdfName()}.pdf';
+      await Printing.sharePdf(bytes: pdfBytes, filename: fileName);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Error sharing PDF: $e"),
-            duration: Duration(milliseconds: 800),
+            duration: const Duration(milliseconds: 800),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -261,8 +312,7 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
                   await Printing.layoutPdf(
                     onLayout: (PdfPageFormat format) async =>
                         _generatePdf(format),
-                    name:
-                        'Laundry_Report_${DateFormat('dd_MM_yyyy').format(DateTime.now())}',
+                    name: _getLedgerPdfName(),
                   );
                 },
               ),
@@ -283,6 +333,9 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
 
   @override
   Widget build(BuildContext context) {
+    final countryCodeAsync = ref.watch(countryCodeProvider);
+    final currencyCode = countryCodeAsync.value?.currencyCode ?? '';
+
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () {
@@ -381,7 +434,7 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
               else if (errorMessage != null)
                 SliverFillRemaining(child: _buildErrorState())
               else if (custLedgerData != null)
-                ...getDataSlivers(custLedgerData!)
+                ...getDataSlivers(custLedgerData!, currencyCode)
               else
                 SliverFillRemaining(child: _buildEmptyState()),
             ],
@@ -640,8 +693,11 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
 
   // --- RESULT LIST UI ---
 
-  List<Widget> getDataSlivers(CustomerLedgerModel ledger) {
-    final currencyFormat = NumberFormat.simpleCurrency(decimalDigits: 2);
+  List<Widget> getDataSlivers(CustomerLedgerModel ledger, String currencyCode) {
+    final currencyFormat = NumberFormat.currency(
+      symbol: currencyCode.isNotEmpty ? '$currencyCode ' : '',
+      decimalDigits: 2,
+    );
 
     return [
       // 1. Customer Summary Card

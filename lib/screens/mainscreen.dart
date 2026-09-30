@@ -65,7 +65,6 @@ class DashboardView extends ConsumerStatefulWidget {
 }
 
 class _DashboardViewState extends ConsumerState<DashboardView> {
-
   @override
   Widget build(BuildContext context) {
     final countryCodeAsync = ref.watch(countryCodeProvider);

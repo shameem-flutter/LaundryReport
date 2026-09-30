@@ -15,17 +15,24 @@ String customerModelToJson(List<CustomerModel> data) =>
 class CustomerModel {
   int customerId;
   String customerName;
+  String mobile;
 
-  CustomerModel({required this.customerId, required this.customerName});
+  CustomerModel({
+    required this.customerId,
+    required this.customerName,
+    this.mobile = '',
+  });
 
   factory CustomerModel.fromJson(Map<String, dynamic> json) => CustomerModel(
     customerId: _toInt(json["customer_id"]),
     customerName: (json["customer_name"] ?? '').toString().trim(),
+    mobile: (json["mobile"] ?? json["phone"] ?? json["mobile_no"] ?? '').toString().trim(),
   );
 
   Map<String, dynamic> toJson() => {
     "customer_id": customerId,
     "customer_name": customerName,
+    "mobile": mobile,
   };
 }
 

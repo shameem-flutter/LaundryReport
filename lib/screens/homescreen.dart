@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -18,11 +19,8 @@ import 'package:laundry/utilities/gapfunc.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'dart:typed_data';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:laundry/providers/nav_provider.dart';
+import 'package:laundry/providers/country_provider.dart';
 
 class Homescreen extends ConsumerStatefulWidget {
   static const routeName = '/home';
@@ -44,6 +42,10 @@ class _HomescreenState extends ConsumerState<Homescreen> {
   final ApiService _apiService = ApiService();
   List<OrderReportModel> _orders = [];
   List<ItemWiseorderreportModel> _itemWise = [];
+  int _currentPage = 1;
+  int _totalPages = 1;
+  int _totalCount = 0;
+  int _pageSize = 20;
 
   List<ItemWiseorderreportModel> get _filteredItems {
     var items = _itemWise;
@@ -105,6 +107,18 @@ class _HomescreenState extends ConsumerState<Homescreen> {
     _loadFilterData();
   }
 
+  String _getReportPdfName({String? orderNo}) {
+    final fromStr = DateFormat('dd_MM_yyyy').format(_fromDate);
+    final toStr = DateFormat('dd_MM_yyyy').format(_toDate);
+    final dateRangeStr = '${fromStr}_to_$toStr';
+    final targetOrderNo = orderNo ?? _orderNoController.text.trim();
+
+    if (targetOrderNo.isNotEmpty) {
+      return 'Order_${targetOrderNo}_$dateRangeStr';
+    }
+    return 'Laundry_Report_$dateRangeStr';
+  }
+
   /// Generates the PDF document based on current table data
   Future<Uint8List> _generatePdf(PdfPageFormat format) async {
     final pdf = pw.Document();
@@ -115,9 +129,23 @@ class _HomescreenState extends ConsumerState<Homescreen> {
 
     // 1. Determine which data to print
     final bool isItemReport = _isItemWise;
-    final String title = isItemReport ? "Item-Wise Report" : "Order Report";
+    final String inputOrderNo = _orderNoController.text.trim();
+    final String title = inputOrderNo.isNotEmpty
+        ? "Order #$inputOrderNo Report"
+        : (isItemReport ? "Item-Wise Report" : "Order Report");
     final String dateRange =
         "${DateFormat('dd/MM/yyyy').format(_fromDate)} - ${DateFormat('dd/MM/yyyy').format(_toDate)}";
+
+    var countryModel = ref.read(countryCodeProvider).value;
+    if (countryModel == null ||
+        (countryModel.companyName.isEmpty && countryModel.address.isEmpty)) {
+      try {
+        countryModel = await _apiService.getCachedCountryCode();
+        countryModel ??= await _apiService.getCountrycode();
+      } catch (_) {}
+    }
+    final companyName = countryModel?.companyName ?? '';
+    final companyAddress = countryModel?.address ?? '';
 
     // 2. Build Data Rows
     final List<List<String>> tableData = [];
@@ -142,6 +170,8 @@ class _HomescreenState extends ConsumerState<Homescreen> {
             'Customer',
             'Mobile',
             'Address',
+            'Entered By',
+            'Payment Rec. By',
             'Payment',
             'Order Status',
             'Deliverystatus',
@@ -179,6 +209,8 @@ class _HomescreenState extends ConsumerState<Homescreen> {
           order.customerName,
           order.customerMobile,
           order.customerAddress == "-" ? "" : order.customerAddress,
+          order.enteredBy,
+          order.paymentReceivedBy,
           order.paymentStatus,
           order.orderStatus,
           order.deliveryStatus,
@@ -196,20 +228,55 @@ class _HomescreenState extends ConsumerState<Homescreen> {
           return [
             pw.Header(
               level: 0,
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            companyName.isNotEmpty
+                                ? companyName.trim()
+                                : "Century Laundry & Dry Cleaning",
+                            style: pw.TextStyle(
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.blue900,
+                            ),
+                          ),
+                          if (companyAddress.isNotEmpty) ...[
+                            pw.SizedBox(height: 2),
+                            pw.Text(
+                              companyAddress
+                                  .replaceAll('\r\n', ', ')
+                                  .replaceAll('\n', ', '),
+                              style: const pw.TextStyle(
+                                fontSize: 9,
+                                color: PdfColors.grey700,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      pw.Text(
+                        "Date: $dateRange",
+                        style: const pw.TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 6),
                   pw.Text(
                     title,
                     style: pw.TextStyle(
-                      fontSize: 24,
+                      fontSize: 14,
                       fontWeight: pw.FontWeight.bold,
                     ),
                   ),
-                  pw.Text(
-                    "Date: $dateRange",
-                    style: const pw.TextStyle(fontSize: 14),
-                  ),
+                  pw.SizedBox(height: 4),
                 ],
               ),
             ),
@@ -255,21 +322,14 @@ class _HomescreenState extends ConsumerState<Homescreen> {
   Future<void> _sharePdf(PdfPageFormat format) async {
     try {
       final pdfBytes = await _generatePdf(format);
-      final directory = await getTemporaryDirectory();
-      final file = File(
-        '${directory.path}/laundry_report_${DateFormat('dd_MM_yyyy').format(DateTime.now())}.pdf',
-      );
-      await file.writeAsBytes(pdfBytes);
-
-      await Share.shareXFiles([
-        XFile(file.path),
-      ], text: 'Here is the Laundry Report.');
+      final fileName = '${_getReportPdfName()}.pdf';
+      await Printing.sharePdf(bytes: pdfBytes, filename: fileName);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Error sharing PDF: $e"),
-            duration: Duration(milliseconds: 900),
+            duration: const Duration(milliseconds: 900),
           ),
         );
       }
@@ -304,8 +364,7 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                   await Printing.layoutPdf(
                     onLayout: (PdfPageFormat format) async =>
                         _generatePdf(format),
-                    name:
-                        'Laundry_Report_${DateFormat('dd_MM_yyyy').format(DateTime.now())}',
+                    name: _getReportPdfName(),
                   );
                 },
               ),
@@ -390,10 +449,13 @@ class _HomescreenState extends ConsumerState<Homescreen> {
     }
   }
 
-  Future<void> _fetchData() async {
+  Future<void> _fetchData({bool isPageChange = false}) async {
     setState(() {
       _isLoading = true;
       _hasFetched = true;
+      if (!isPageChange) {
+        _currentPage = 1;
+      }
     });
     try {
       final bool isActivated = await _apiService.checkLicenseStatus();
@@ -450,7 +512,7 @@ class _HomescreenState extends ConsumerState<Homescreen> {
         );
         setState(() => _itemWise = results);
       } else {
-        final results = await _apiService.fetchOrderReport(
+        final response = await _apiService.fetchOrderReport(
           startDate: startDate,
           endDate: endDate,
           orderStatus: _orderStatus,
@@ -458,8 +520,16 @@ class _HomescreenState extends ConsumerState<Homescreen> {
           deliveryStatus: _deliveryStatus,
           customerId: _selectedCustomer == "All" ? null : _selectedCustomerId,
           orderNo: _orderNoController.text,
+          page: _currentPage,
+          pageSize: _pageSize,
         );
-        setState(() => _orders = results);
+        setState(() {
+          _orders = response.results;
+          _totalCount = response.count;
+          _totalPages = response.totalPages;
+          _currentPage = response.page;
+          _pageSize = response.pageSize;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -491,11 +561,17 @@ class _HomescreenState extends ConsumerState<Homescreen> {
       _customerController.clear();
       _orderNoController.clear();
       _hasFetched = false;
+      _currentPage = 1;
+      _totalPages = 1;
+      _totalCount = 0;
+      _pageSize = 20;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final countryCodeAsync = ref.watch(countryCodeProvider);
+    final currencyCode = countryCodeAsync.value?.currencyCode ?? '';
     final deliveryCounts = buildDeliveryStatusCount();
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -556,9 +632,9 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                     child: Center(child: CircularProgressIndicator()),
                   )
                 else if (_isItemWise)
-                  _buildItemsTable(items: _filteredItems)
+                  _buildItemsTable(items: _filteredItems, currencyCode: currencyCode)
                 else
-                  _buildOrderList(orders: _orders),
+                  _buildOrderList(orders: _orders, currencyCode: currencyCode),
                 vertGap(60),
               ],
             ),
@@ -851,51 +927,55 @@ class _HomescreenState extends ConsumerState<Homescreen> {
   }
 
   Widget _buildCustomerSearch() {
-    return Autocomplete<String>(
+    return Autocomplete<CustomerModel>(
+      displayStringForOption: (CustomerModel option) => option.customerName,
       initialValue: TextEditingValue(
         text: _selectedCustomer == 'All' ? '' : _selectedCustomer,
       ),
       optionsBuilder: (TextEditingValue textEditingValue) {
         final query = textEditingValue.text.toLowerCase().trim();
 
-        if (query.isEmpty) return const Iterable<String>.empty();
+        if (query.isEmpty) return const Iterable<CustomerModel>.empty();
         final matchingCustomers = _customerName
-            .map((e) => e.customerName)
-            .where((name) => name.toLowerCase().contains(query))
+            .where(
+              (c) =>
+                  c.customerName.toLowerCase().contains(query) ||
+                  c.mobile.toLowerCase().contains(query),
+            )
             .toList();
 
-        if (matchingCustomers.isEmpty) return const Iterable<String>.empty();
+        if (matchingCustomers.isEmpty) {
+          return const Iterable<CustomerModel>.empty();
+        }
         return matchingCustomers;
       },
-      onSelected: (String selection) {
+      onSelected: (CustomerModel selection) {
         setState(() {
-          _selectedCustomer = selection;
-          _updateCustomerId();
+          _selectedCustomer = selection.customerName;
+          _selectedCustomerId = selection.customerId.toString();
         });
       },
       fieldViewBuilder:
           (context, textEditingController, focusNode, onFieldSubmitted) {
-            // Keep controller in sync if needed, or primarily rely on state
             return TextFormField(
               controller: textEditingController,
               focusNode: focusNode,
-              // validator: (value) {
-              //   if (value == null || value.trim().isEmpty) {
-              //     return 'Required';
-              //   }
-              //   return null;
-              // },
               onChanged: (value) {
                 if (value.trim().isEmpty) {
                   setState(() {
                     _selectedCustomer = "All";
                     _selectedCustomerId = null;
                   });
+                } else {
+                  setState(() {
+                    _selectedCustomer = value;
+                    _updateCustomerId();
+                  });
                 }
               },
               decoration: InputDecoration(
-                labelText: "Customer name",
-                hintText: "Search customer or type 'All'",
+                labelText: "Customer name or phone",
+                hintText: "Search customer by name or phone",
                 labelStyle: const TextStyle(color: blackColor),
                 hintStyle: TextStyle(color: Colors.grey.shade500),
                 prefixIcon: Icon(
@@ -943,7 +1023,11 @@ class _HomescreenState extends ConsumerState<Homescreen> {
               ),
             );
           },
-      optionsViewBuilder: (context, onSelected, Iterable<String> options) {
+      optionsViewBuilder: (
+        context,
+        onSelected,
+        Iterable<CustomerModel> options,
+      ) {
         if (options.isEmpty) return const SizedBox.shrink();
         return Align(
           alignment: Alignment.topLeft,
@@ -961,24 +1045,30 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                 itemCount: options.length,
                 itemBuilder: (context, index) {
                   final option = options.elementAt(index);
-                  final isAllOption = option == "All";
                   return ListTile(
                     dense: true,
                     leading: Icon(
-                      isAllOption ? Icons.select_all : Icons.person_outline,
+                      Icons.person_outline,
                       size: 18,
-                      color: isAllOption ? Colors.blue : Colors.grey.shade600,
+                      color: Colors.grey.shade600,
                     ),
                     title: Text(
-                      option,
-                      style: TextStyle(
+                      option.customerName,
+                      style: const TextStyle(
                         fontSize: 14,
-                        fontWeight: isAllOption
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                        color: isAllOption ? Colors.blue : Colors.black87,
+                        fontWeight: FontWeight.normal,
+                        color: Colors.black87,
                       ),
                     ),
+                    subtitle: option.mobile.isNotEmpty
+                        ? Text(
+                            option.mobile,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          )
+                        : null,
                     onTap: () => onSelected(option),
                   );
                 },
@@ -991,52 +1081,175 @@ class _HomescreenState extends ConsumerState<Homescreen> {
   }
 
   // --- Order List Methods ---
-  Widget _buildOrderList({required List<OrderReportModel> orders}) {
+  Widget _buildOrderList({
+    required List<OrderReportModel> orders,
+    required String currencyCode,
+  }) {
     return Column(
-      children: orders.map((order) => _buildOrderCard(order)).toList(),
+      children: [
+        ...orders.map((order) => _buildOrderCard(order, currencyCode)),
+        if (orders.isNotEmpty || _totalCount > 0)
+          _buildPaginationControls(),
+      ],
     );
   }
 
-  Widget _buildOrderCard(OrderReportModel order) {
+  Widget _buildPaginationControls() {
+    final startItem =
+        _totalCount == 0 ? 0 : ((_currentPage - 1) * _pageSize) + 1;
+    final endItem = (_currentPage * _pageSize) > _totalCount
+        ? _totalCount
+        : (_currentPage * _pageSize);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isSmallScreen = constraints.maxWidth < 600;
+          return Flex(
+            direction: isSmallScreen ? Axis.vertical : Axis.horizontal,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                _totalCount > 0
+                    ? "Showing $startItem-$endItem of $_totalCount orders"
+                    : "No orders",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              if (isSmallScreen) const SizedBox(height: 12),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _currentPage > 1 && !_isLoading
+                        ? () {
+                            setState(() => _currentPage--);
+                            _fetchData(isPageChange: true);
+                          }
+                        : null,
+                    icon: const Icon(Icons.chevron_left, size: 18),
+                    label: const Text("Prev"),
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: Colors.blue.shade50,
+                      foregroundColor: Colors.blue.shade800,
+                      disabledBackgroundColor: Colors.grey.shade100,
+                      disabledForegroundColor: Colors.grey.shade400,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      "Page $_currentPage of $_totalPages",
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _currentPage < _totalPages && !_isLoading
+                        ? () {
+                            setState(() => _currentPage++);
+                            _fetchData(isPageChange: true);
+                          }
+                        : null,
+                    icon: const Icon(Icons.chevron_right, size: 18),
+                    label: const Text("Next"),
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: Colors.blue.shade50,
+                      foregroundColor: Colors.blue.shade800,
+                      disabledBackgroundColor: Colors.grey.shade100,
+                      disabledForegroundColor: Colors.grey.shade400,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildOrderCard(OrderReportModel order, String currencyCode) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 18,
-                  color: Colors.blue.shade700,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "Order #${order.orderNo}",
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF333333),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _showOrderDetailsSheet(context, order, currencyCode),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 18,
+                    color: Colors.blue.shade700,
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Order #${order.orderNo}",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+
                 const Spacer(),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
                 const Icon(
                   Icons.calendar_today_rounded,
-                  size: 18,
+                  size: 14,
                   color: Colors.grey,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 Text(
-                  "${_formatDate(order.orderDate)} / ${_formatTime(order.orderDate)}",
+                  "${_formatDate(order.orderDate)} ${_formatTime(order.orderDate)}",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -1059,6 +1272,22 @@ class _HomescreenState extends ConsumerState<Homescreen> {
                 icon: Icons.location_on_outlined,
                 label: "Address",
                 value: order.customerAddress,
+              ),
+            ],
+            if (order.enteredBy.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _buildInfoRow(
+                icon: Icons.badge_outlined,
+                label: "Entered By",
+                value: order.enteredBy,
+              ),
+            ],
+            if (order.paymentReceivedBy.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _buildInfoRow(
+                icon: Icons.receipt_long_outlined,
+                label: "Payment Received By",
+                value: order.paymentReceivedBy,
               ),
             ],
             const SizedBox(height: 16),
@@ -1159,11 +1388,15 @@ class _HomescreenState extends ConsumerState<Homescreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // --- Items Table Methods ---
-  Widget _buildItemsTable({required List<ItemWiseorderreportModel> items}) {
+  Widget _buildItemsTable({
+    required List<ItemWiseorderreportModel> items,
+    required String currencyCode,
+  }) {
     if (items.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -1174,6 +1407,7 @@ class _HomescreenState extends ConsumerState<Homescreen> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
+          showCheckboxColumn: false,
           dataRowMinHeight: 48,
           dataRowMaxHeight: 48,
           horizontalMargin: 0,
@@ -1203,6 +1437,28 @@ class _HomescreenState extends ConsumerState<Homescreen> {
           ],
           rows: items.map((item) {
             return DataRow(
+              onSelectChanged: (_) {
+                final matchingOrder = _orders.firstWhere(
+                  (o) => o.orderNo == item.orderNo,
+                  orElse: () => OrderReportModel(
+                    orderId: item.orderNo,
+                    orderNo: item.orderNo,
+                    orderDate: item.orderDate,
+                    customerName: item.customerName,
+                    customerMobile: item.customerMobile,
+                    customerAddress: item.customerAddress,
+                    paymentStatus: item.paymentStatus,
+                    deliveryStatus: item.deliveryStatus,
+                    orderStatus: item.orderStatus,
+                    totalDiscount: 0,
+                    grandTotal: 0,
+                    enteredBy: '',
+                    paymentReceivedBy: '',
+                    orderItems: [],
+                  ),
+                );
+                _showOrderDetailsSheet(context, matchingOrder, currencyCode);
+              },
               cells: [
                 _buildDataCell(Text("${item.orderNo}")),
                 _buildDataCell(
@@ -1327,7 +1583,10 @@ class _HomescreenState extends ConsumerState<Homescreen> {
       try {
         final customer = _customerName.firstWhere(
           (c) =>
-              c.customerName.toLowerCase() == _selectedCustomer.toLowerCase(),
+              c.customerName.toLowerCase() == _selectedCustomer.toLowerCase() ||
+              c.mobile.toLowerCase() == _selectedCustomer.toLowerCase() ||
+              "${c.customerName} (${c.mobile})".toLowerCase() ==
+                  _selectedCustomer.toLowerCase(),
         );
         _selectedCustomerId = "${customer.customerId}";
       } catch (e) {
@@ -1815,5 +2074,1041 @@ class _HomescreenState extends ConsumerState<Homescreen> {
         );
       }
     }
+  }
+
+  Future<List<OrderItem>> _ensureOrderItems(OrderReportModel order) async {
+    if (order.orderItems.isNotEmpty) {
+      return order.orderItems;
+    }
+    try {
+      final itemWiseResults = await _apiService.fetchItemWiseReport(
+        startDate: DateFormat('yyyy-MM-dd').format(order.orderDate),
+        endDate: DateFormat('yyyy-MM-dd').format(order.orderDate),
+        orderStatus: "All",
+        paymentStatus: "All",
+        deliveryStatus: "All",
+        orderNo: "${order.orderNo}",
+      );
+      return itemWiseResults
+          .map(
+            (item) => OrderItem(
+              serviceNameX: item.serviceName,
+              serviceType: item.serviceType,
+              serviceItemNameX: item.item,
+              unitRate: 0.0,
+              qty: 1.0,
+              discount: 0.0,
+              lineTotal: 0.0,
+              itemStatus: item.itemStatus,
+              extraNote: '',
+              itemDeliveredBy: '',
+            ),
+          )
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<Uint8List> _generateSingleOrderReceiptPdf(
+    PdfPageFormat format,
+    OrderReportModel order,
+    List<OrderItem> items,
+    String currencyCode,
+    String companyName,
+    String companyAddress,
+    String countryName,
+  ) async {
+    final pdf = pw.Document();
+
+    final font = await PdfGoogleFonts.poppinsRegular();
+    final fontBold = await PdfGoogleFonts.poppinsBold();
+
+    final String dateStr =
+        "${_formatDate(order.orderDate)} ${_formatTime(order.orderDate)}";
+
+    // Calculate total quantity across items
+    final double totalQty = items.fold(0.0, (sum, item) => sum + item.qty);
+    final String totalQtyStr =
+        totalQty.truncateToDouble() == totalQty
+            ? totalQty.toInt().toString()
+            : totalQty.toStringAsFixed(2);
+
+    // Roll 80mm thermal receipt format
+    final pageFormat = PdfPageFormat.roll80.copyWith(
+      marginTop: 10,
+      marginBottom: 10,
+      marginLeft: 8,
+      marginRight: 8,
+    );
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: pageFormat,
+        theme: pw.ThemeData.withFont(base: font, bold: fontBold),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header Info (Centered)
+              pw.Center(
+                child: pw.Column(
+                  children: [
+                    pw.Text(
+                      companyName.isNotEmpty
+                          ? companyName.trim()
+                          : "Century Laundry & Dry Cleaning",
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                      textAlign: pw.TextAlign.center,
+                    ),
+                    if (companyAddress.isNotEmpty) ...[
+                      pw.SizedBox(height: 2),
+                      ...companyAddress
+                          .replaceAll('\r\n', '\n')
+                          .split('\n')
+                          .map(
+                            (line) => pw.Text(
+                              line.trim(),
+                              style: const pw.TextStyle(fontSize: 7.5),
+                              textAlign: pw.TextAlign.center,
+                            ),
+                          ),
+                    ] else if (countryName.isNotEmpty) ...[
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        countryName,
+                        style: const pw.TextStyle(fontSize: 8),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ],
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      "Invoice",
+                      style: const pw.TextStyle(fontSize: 8),
+                    ),
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      "Outlet Copy",
+                      style: pw.TextStyle(
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Divider(thickness: 1, color: PdfColors.black),
+              pw.SizedBox(height: 2),
+
+              // Order Number Box
+              pw.Center(
+                child: pw.Text(
+                  "Order #: ${order.orderNo}",
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 2),
+              pw.Divider(thickness: 1, color: PdfColors.black),
+              pw.SizedBox(height: 4),
+
+              // Date & Customer Details
+              pw.Text(
+                "Order Date: $dateStr",
+                style: const pw.TextStyle(fontSize: 8),
+              ),
+              pw.SizedBox(height: 2),
+              pw.Text(
+                "Customer: ${order.customerName}",
+                style: const pw.TextStyle(fontSize: 8),
+              ),
+              if (order.customerMobile.isNotEmpty) ...[
+                pw.Text(
+                  order.customerMobile,
+                  style: const pw.TextStyle(fontSize: 8),
+                ),
+              ],
+              pw.SizedBox(height: 6),
+              pw.Divider(thickness: 1, color: PdfColors.black),
+              pw.SizedBox(height: 4),
+
+              // Table Headers
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Expanded(
+                    flex: 3,
+                    child: pw.Text(
+                      "Service",
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  pw.Container(
+                    width: 25,
+                    alignment: pw.Alignment.centerRight,
+                    child: pw.Text(
+                      "Qty",
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  pw.Container(
+                    width: 35,
+                    alignment: pw.Alignment.centerRight,
+                    child: pw.Text(
+                      "Price",
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  pw.Container(
+                    width: 40,
+                    alignment: pw.Alignment.centerRight,
+                    child: pw.Text(
+                      "Amount",
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 2),
+              pw.Divider(thickness: 1, color: PdfColors.black),
+              pw.SizedBox(height: 4),
+
+              // Items Breakdown
+              ...items.map((item) {
+                final qtyStr =
+                    item.qty.truncateToDouble() == item.qty
+                        ? item.qty.toInt().toString()
+                        : item.qty.toStringAsFixed(2);
+                return pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    // Line 1: Service Name + Service Type
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          item.serviceNameX,
+                          style: const pw.TextStyle(fontSize: 8),
+                        ),
+                        if (item.serviceType.isNotEmpty)
+                          pw.Text(
+                            item.serviceType,
+                            style: pw.TextStyle(
+                              fontSize: 8,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 2),
+                    // Line 2: Item Name (uppercase) + Qty + Price + Amount
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Expanded(
+                          flex: 3,
+                          child: pw.Text(
+                            item.serviceItemNameX.toUpperCase(),
+                            style: const pw.TextStyle(fontSize: 8),
+                          ),
+                        ),
+                        pw.Container(
+                          width: 25,
+                          alignment: pw.Alignment.centerRight,
+                          child: pw.Text(
+                            qtyStr,
+                            style: const pw.TextStyle(fontSize: 8),
+                          ),
+                        ),
+                        pw.Container(
+                          width: 35,
+                          alignment: pw.Alignment.centerRight,
+                          child: pw.Text(
+                            item.unitRate.toStringAsFixed(2),
+                            style: const pw.TextStyle(fontSize: 8),
+                          ),
+                        ),
+                        pw.Container(
+                          width: 40,
+                          alignment: pw.Alignment.centerRight,
+                          child: pw.Text(
+                            item.lineTotal.toStringAsFixed(2),
+                            style: const pw.TextStyle(fontSize: 8),
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 6),
+                  ],
+                );
+              }),
+
+              pw.Divider(thickness: 1, color: PdfColors.black),
+              pw.SizedBox(height: 4),
+
+              // Total Qty
+              pw.Text(
+                "Total Qty: $totalQtyStr",
+                style: pw.TextStyle(
+                  fontSize: 9,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Divider(thickness: 1, color: PdfColors.black),
+              pw.SizedBox(height: 4),
+
+              // Total Amount
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    "Total\nAmount",
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.Text(
+                    order.grandTotal.toStringAsFixed(2),
+                    style: pw.TextStyle(
+                      fontSize: 11,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 4),
+              pw.Divider(thickness: 1, color: PdfColors.black),
+            ],
+          );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  Future<void> _shareSingleOrderPdf(
+    OrderReportModel order,
+    String currencyCode,
+  ) async {
+    try {
+      final countryModel = ref.read(countryCodeProvider).value;
+      final companyName = countryModel?.companyName ?? '';
+      final companyAddress = countryModel?.address ?? '';
+      final countryName = countryModel?.country ?? '';
+      final items = await _ensureOrderItems(order);
+      final pdfBytes = await _generateSingleOrderReceiptPdf(
+        PdfPageFormat.a4,
+        order,
+        items,
+        currencyCode,
+        companyName,
+        companyAddress,
+        countryName,
+      );
+      final fileName =
+          '${_getReportPdfName(orderNo: order.orderNo.toString())}.pdf';
+
+      await Printing.sharePdf(bytes: pdfBytes, filename: fileName);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error sharing receipt: $e"),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(milliseconds: 1200),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _printSingleOrderPdf(
+    OrderReportModel order,
+    String currencyCode,
+  ) async {
+    try {
+      final countryModel = ref.read(countryCodeProvider).value;
+      final companyName = countryModel?.companyName ?? '';
+      final companyAddress = countryModel?.address ?? '';
+      final countryName = countryModel?.country ?? '';
+      final items = await _ensureOrderItems(order);
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async =>
+            _generateSingleOrderReceiptPdf(
+              format,
+              order,
+              items,
+              currencyCode,
+              companyName,
+              companyAddress,
+              countryName,
+            ),
+        name: _getReportPdfName(orderNo: order.orderNo.toString()),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error printing receipt: $e"),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(milliseconds: 1200),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showOrderDetailsSheet(
+    BuildContext context,
+    OrderReportModel order,
+    String currencyCode,
+  ) {
+    final countryModel = ref.read(countryCodeProvider).value;
+    final companyName = countryModel?.companyName ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.75,
+            minChildSize: 0.4,
+            maxChildSize: 0.95,
+            builder: (context, scrollController) {
+              final currencySuffix =
+                  currencyCode.isNotEmpty ? ' $currencyCode' : '';
+              return Column(
+                children: [
+                  // Drag Handle
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 10),
+                    width: 40,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+
+                  // Header Bar with Company Name & Order No
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: primaryColor.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.receipt_long_rounded,
+                                color: primaryColor,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (companyName.isNotEmpty)
+                                  Text(
+                                    companyName.toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: primaryColor,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                Text(
+                                  "Order #${order.orderNo}",
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  "${_formatDate(order.orderDate)} ${_formatTime(order.orderDate)}",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(),
+
+                  // Content List
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      children: [
+                        // Customer Details Card
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "CUSTOMER DETAILS",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade600,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              _buildInfoRow(
+                                icon: Icons.person_outline,
+                                label: "Name",
+                                value: order.customerName,
+                              ),
+                              const SizedBox(height: 6),
+                              _buildInfoRow(
+                                icon: Icons.phone_outlined,
+                                label: "Mobile",
+                                value: order.customerMobile,
+                              ),
+                              if (order.customerAddress.isNotEmpty &&
+                                  order.customerAddress != "-") ...[
+                                const SizedBox(height: 6),
+                                _buildInfoRow(
+                                  icon: Icons.location_on_outlined,
+                                  label: "Address",
+                                  value: order.customerAddress,
+                                ),
+                              ],
+                              if (order.enteredBy.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                _buildInfoRow(
+                                  icon: Icons.badge_outlined,
+                                  label: "Entered By",
+                                  value: order.enteredBy,
+                                ),
+                              ],
+                              if (order.paymentReceivedBy.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                _buildInfoRow(
+                                  icon: Icons.receipt_long_outlined,
+                                  label: "Payment Rec. By",
+                                  value: order.paymentReceivedBy,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Order Statuses & Total
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.blue.shade100),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: [
+                                  _buildMiniStatusColumn(
+                                    "Payment",
+                                    order.paymentStatus,
+                                    _getStatusColor(order.paymentStatus),
+                                  ),
+                                  _buildMiniStatusColumn(
+                                    "Order Status",
+                                    order.orderStatus,
+                                    _getStatusColor(order.orderStatus),
+                                  ),
+                                  _buildMiniStatusColumn(
+                                    "Delivery",
+                                    order.deliveryStatus,
+                                    _getStatusColor(order.deliveryStatus),
+                                  ),
+                                ],
+                              ),
+                              if (order.paymentMode.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                const Divider(height: 1),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Text(
+                                      "Payment Mode: ",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: order.paymentMode.map((pm) {
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue.shade100,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              "${pm.paymentModeName}: ${pm.amount.toStringAsFixed(2)}$currencySuffix",
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.blue.shade900,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              if (order.grandTotal > 0 ||
+                                  order.totalDiscount > 0) ...[
+                                const SizedBox(height: 14),
+                                const Divider(height: 1),
+                                const SizedBox(height: 12),
+                                if (order.totalDiscount > 0)
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "Total Discount:",
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                      ),
+                                      Text(
+                                        "${order.totalDiscount.toStringAsFixed(2)}$currencySuffix",
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.red,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                if (order.grandTotal > 0) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        "Grand Total:",
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        "${order.grandTotal.toStringAsFixed(2)}$currencySuffix",
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: primaryColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Order Items Section
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.cleaning_services_outlined,
+                              size: 18,
+                              color: primaryColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "ORDER ITEMS",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        if (order.orderItems.isNotEmpty)
+                          ...order.orderItems.map(
+                            (item) => _buildOrderItemCard(item, currencySuffix),
+                          )
+                        else
+                          FutureBuilder<List<ItemWiseorderreportModel>>(
+                            future: _apiService.fetchItemWiseReport(
+                              startDate: DateFormat('yyyy-MM-dd').format(order.orderDate),
+                              endDate: DateFormat('yyyy-MM-dd').format(order.orderDate),
+                              orderStatus: "All",
+                              paymentStatus: "All",
+                              deliveryStatus: "All",
+                              orderNo: "${order.orderNo}",
+                            ),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(20),
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              }
+                              if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                                return Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      "No item details available",
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return Column(
+                                children: snapshot.data!
+                                    .map(
+                                      (item) => _buildItemWiseCard(item),
+                                    )
+                                    .toList(),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  // Bottom Action Bar (Print & Share PDF Buttons)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, -4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _printSingleOrderPdf(order, currencyCode),
+                            icon: const Icon(Icons.print_outlined, size: 18),
+                            label: const Text("Print Receipt"),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: primaryColor,
+                              side: BorderSide(color: primaryColor),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _shareSingleOrderPdf(order, currencyCode),
+                            icon: const Icon(Icons.share_rounded, size: 18),
+                            label: const Text("Share Receipt"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF25D366), // WhatsApp Green / Modern Action Color
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMiniStatusColumn(String title, String status, Color color) {
+    return Column(
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            status,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrderItemCard(OrderItem item, String currencySuffix) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  "${item.serviceItemNameX} (${item.serviceNameX})",
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _getServiceTypeColor(item.serviceType),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  item.serviceType,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Qty: ${item.qty.toStringAsFixed(item.qty.truncateToDouble() == item.qty ? 0 : 2)}  ×  ${item.unitRate.toStringAsFixed(2)}$currencySuffix",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              Text(
+                "${item.lineTotal.toStringAsFixed(2)}$currencySuffix",
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          if (item.extraNote.isNotEmpty || item.itemStatus.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                if (item.itemStatus.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _getItemColor(item.itemStatus).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      item.itemStatus,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _getItemColor(item.itemStatus),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                if (item.extraNote.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Note: ${item.extraNote}",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.grey.shade600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemWiseCard(ItemWiseorderreportModel item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "${item.item} (${item.serviceName})",
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Status: ${item.itemStatus}",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: _getServiceTypeColor(item.serviceType),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              item.serviceType,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
