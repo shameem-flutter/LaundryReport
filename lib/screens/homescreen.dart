@@ -2155,6 +2155,12 @@ class _HomescreenState extends ConsumerState<Homescreen> {
             ),
           ),
 
+          // Collection Summary (at the top, above the table)
+          _buildCollectionSummaryHorizontal(
+            report: report,
+            currencyCode: curr,
+          ),
+
           // Active Payment Mode filter chip
           if (_selectedPaymentMode != "All" && _selectedPaymentMode.isNotEmpty)
             Padding(
@@ -2538,12 +2544,6 @@ class _HomescreenState extends ConsumerState<Homescreen> {
               ),
             ),
           ),
-
-          // Collection Summary (separate at horizontal end below)
-          _buildCollectionSummaryHorizontal(
-            report: report,
-            currencyCode: curr,
-          ),
         ],
       ),
     );
@@ -2829,7 +2829,7 @@ class _HomescreenState extends ConsumerState<Homescreen> {
     required String currencyCode,
   }) {
     return Container(
-      margin: const EdgeInsets.only(top: 24, bottom: 20),
+      margin: const EdgeInsets.only(top: 4, bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
