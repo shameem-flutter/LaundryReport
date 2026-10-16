@@ -13,16 +13,17 @@ class ApiEndpoints {
   }
 
   static Future<void> updateBaseUrl(String protocol, String host) async {
-    // Ensure host doesn't end with slash before adding it
-    String formattedHost = host.endsWith('/')
-        ? host.substring(0, host.length - 1)
-        : host;
-    // We add the common suffix if it's not there, or let user specify it.
-    // Based on ApiService, it seems to expect the suffix.
-    // Let's assume the user enters the full host + path if needed, or we append the integration path.
-    // The current ApiService has: https://.../api/v1/integration/
-    // If the user just enters the IP, they might expect the path to be appended.
-    // However, the user's provided snippet doesn't append any path logic in updateBaseUrl.
+    String formattedHost = host.trim();
+    if (formattedHost.startsWith('https://')) {
+      protocol = 'https://';
+      formattedHost = formattedHost.replaceFirst('https://', '');
+    } else if (formattedHost.startsWith('http://')) {
+      protocol = 'http://';
+      formattedHost = formattedHost.replaceFirst('http://', '');
+    }
+    if (formattedHost.endsWith('/')) {
+      formattedHost = formattedHost.substring(0, formattedHost.length - 1);
+    }
 
     final newUrl = '$protocol$formattedHost/';
     baseUrl = newUrl;
@@ -35,6 +36,8 @@ class ApiEndpoints {
   static const String custName = 'api/v1/integration/customer/';
   static const String orderReport = 'api/v1/integration/order-report/';
   static const String itemWiseReport = 'api/v1/integration/item-wise-report/';
+  static const String orderSummaryReport =
+      'api/v1/integration/order-summary-report/';
   static const String checkLicense = 'api/v2/license/check_license_status/';
   static const String machineCode = 'api/v2/license/get_system_code/';
   static const String activateLicenseKey = 'api/v2/license/activate_license/';

@@ -114,6 +114,7 @@ class OrderReportModel {
   double grandTotal;
   String enteredBy;
   String paymentReceivedBy;
+  double orderQty;
   List<PaymentModeItem> paymentMode;
   List<OrderItem> orderItems;
 
@@ -131,35 +132,47 @@ class OrderReportModel {
     required this.grandTotal,
     required this.enteredBy,
     required this.paymentReceivedBy,
+    this.orderQty = 0.0,
     this.paymentMode = const [],
     required this.orderItems,
   });
 
-  factory OrderReportModel.fromJson(Map<String, dynamic> json) =>
-      OrderReportModel(
-        orderId: _toInt(json["order_id"]),
-        orderNo: _toInt(json["order_no"]),
-        orderDate: DateTime.parse(json["order_date"]),
-        customerName: json["customer_name"] ?? '',
-        customerMobile: json["customer_mobile"] ?? '',
-        customerAddress: json["customer_address"] ?? '',
-        paymentStatus: json["payment_status"] ?? '',
-        deliveryStatus: json["delivery_status"] ?? '',
-        orderStatus: json["order_status"] ?? '',
-        totalDiscount: _toDouble(json["total_discount"]),
-        grandTotal: _toDouble(json["grand_total"]),
-        enteredBy: json["entered_by"] ?? '',
-        paymentReceivedBy: json["payment_received_by"] ?? '',
-        paymentMode: json["payment_mode"] != null && json["payment_mode"] is List
-            ? List<PaymentModeItem>.from(
-                (json["payment_mode"] as List)
-                    .map((x) => PaymentModeItem.fromJson(x)),
-              )
-            : [],
-        orderItems: List<OrderItem>.from(
-          (json["order_items"] ?? []).map((x) => OrderItem.fromJson(x)),
-        ),
-      );
+  factory OrderReportModel.fromJson(Map<String, dynamic> json) {
+    final parsedOrderItems = List<OrderItem>.from(
+      (json["order_items"] ?? []).map((x) => OrderItem.fromJson(x)),
+    );
+    final double itemsQtySum = parsedOrderItems.fold<double>(
+      0.0,
+      (sum, item) => sum + item.qty,
+    );
+    final double parsedOrderQty = json["order_qty"] != null
+        ? _toDouble(json["order_qty"])
+        : itemsQtySum;
+
+    return OrderReportModel(
+      orderId: _toInt(json["order_id"]),
+      orderNo: _toInt(json["order_no"]),
+      orderDate: DateTime.parse(json["order_date"]),
+      customerName: json["customer_name"] ?? '',
+      customerMobile: json["customer_mobile"] ?? '',
+      customerAddress: json["customer_address"] ?? '',
+      paymentStatus: json["payment_status"] ?? '',
+      deliveryStatus: json["delivery_status"] ?? '',
+      orderStatus: json["order_status"] ?? '',
+      totalDiscount: _toDouble(json["total_discount"]),
+      grandTotal: _toDouble(json["grand_total"]),
+      enteredBy: json["entered_by"] ?? '',
+      paymentReceivedBy: json["payment_received_by"] ?? '',
+      orderQty: parsedOrderQty,
+      paymentMode: json["payment_mode"] != null && json["payment_mode"] is List
+          ? List<PaymentModeItem>.from(
+              (json["payment_mode"] as List)
+                  .map((x) => PaymentModeItem.fromJson(x)),
+            )
+          : [],
+      orderItems: parsedOrderItems,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     "order_id": orderId,
@@ -173,6 +186,7 @@ class OrderReportModel {
     "order_status": orderStatus,
     "total_discount": totalDiscount,
     "grand_total": grandTotal,
+    "order_qty": orderQty,
     "entered_by": enteredBy,
     "payment_received_by": paymentReceivedBy,
     "payment_mode": List<dynamic>.from(paymentMode.map((x) => x.toJson())),

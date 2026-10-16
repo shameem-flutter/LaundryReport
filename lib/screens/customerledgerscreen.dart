@@ -1,4 +1,6 @@
-import 'dart:typed_data';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -104,9 +106,16 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
   Future<Uint8List> _generatePdf(PdfPageFormat format) async {
     final pdf = pw.Document();
 
-    // Define fonts and styles
-    final font = await PdfGoogleFonts.poppinsRegular();
-    final fontBold = await PdfGoogleFonts.poppinsBold();
+    // Define fonts and styles with offline fallback
+    pw.Font font;
+    pw.Font fontBold;
+    try {
+      font = await PdfGoogleFonts.poppinsRegular();
+      fontBold = await PdfGoogleFonts.poppinsBold();
+    } catch (_) {
+      font = pw.Font.helvetica();
+      fontBold = pw.Font.helveticaBold();
+    }
 
     // 1. Determine which data to print
     final custLedgerPrint = custLedgerData;
@@ -267,6 +276,77 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
     return pdf.save();
   }
 
+  Future<void> _downloadPdf(PdfPageFormat format) async {
+    try {
+      final pdfBytes = await _generatePdf(format);
+      final fileName = '${_getLedgerPdfName()}.pdf';
+
+      if (kIsWeb) {
+        await Printing.sharePdf(bytes: pdfBytes, filename: fileName);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Downloading $fileName..."),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+
+      Directory? directory;
+      try {
+        if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+          directory = await getDownloadsDirectory();
+        } else if (Platform.isAndroid) {
+          directory = await getDownloadsDirectory() ??
+              await getExternalStorageDirectory();
+        }
+      } catch (e) {
+        debugPrint("Error fetching downloads directory: $e");
+      }
+
+      directory ??= await getApplicationDocumentsDirectory();
+
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsBytes(pdfBytes);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("PDF saved successfully:\n${file.path}"),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: "Share",
+              textColor: Colors.amber,
+              onPressed: () {
+                Printing.sharePdf(bytes: pdfBytes, filename: fileName);
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      try {
+        final pdfBytes = await _generatePdf(format);
+        final fileName = '${_getLedgerPdfName()}.pdf';
+        await Printing.sharePdf(bytes: pdfBytes, filename: fileName);
+      } catch (err) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Error saving PDF: $err"),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(milliseconds: 1200),
+            ),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _sharePdf(PdfPageFormat format) async {
     try {
       final pdfBytes = await _generatePdf(format);
@@ -277,7 +357,7 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Error sharing PDF: $e"),
-            duration: const Duration(milliseconds: 800),
+            duration: const Duration(milliseconds: 1200),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -285,14 +365,15 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
     }
   }
 
-  /// Trigger Printing or Sharing
+  /// Trigger Printing, Sharing, or Downloading
   Future<void> _printOrShare() async {
     // Check if there is data to print
     if (custLedgerData == null || custLedgerData!.ledger.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("No data to print/share!"),
+          content: const Text("No data to print/share!"),
           backgroundColor: redColor,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -300,31 +381,101 @@ class _CustomerledgerscreenState extends ConsumerState<Customerledgerscreen> {
 
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
         return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.print),
-                title: const Text('Print'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await Printing.layoutPdf(
-                    onLayout: (PdfPageFormat format) async =>
-                        _generatePdf(format),
-                    name: _getLedgerPdfName(),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.share),
-                title: const Text('Share via WhatsApp/Others'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _sharePdf(PdfPageFormat.a4.landscape);
-                },
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            child: Wrap(
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Text(
+                    "Export / Print Ledger",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
+                ),
+                const Divider(),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.download_rounded, color: primaryColor),
+                  ),
+                  title: const Text('Download / Save PDF',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle:
+                      const Text('Save PDF file directly to device storage'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _downloadPdf(PdfPageFormat.a4.landscape);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.share_rounded,
+                        color: Color(0xFF25D366)),
+                  ),
+                  title: const Text('Share via WhatsApp / Others',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle:
+                      const Text('Share PDF to WhatsApp, email, or other apps'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _sharePdf(PdfPageFormat.a4.landscape);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.print_rounded,
+                        color: Colors.purple.shade700),
+                  ),
+                  title: const Text('Print / Save as PDF',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text(
+                      'Open system print preview (supports Save as PDF)'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await Printing.layoutPdf(
+                      onLayout: (PdfPageFormat format) async =>
+                          _generatePdf(format),
+                      name: _getLedgerPdfName(),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
