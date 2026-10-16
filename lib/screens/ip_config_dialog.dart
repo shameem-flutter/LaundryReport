@@ -155,7 +155,7 @@ class _IpConfigDialogState extends ConsumerState<IpConfigDialog> {
                           ref.invalidate(countryCodeProvider);
 
                           final bool isActivated = await _apiService
-                              .checkLicenseStatus();
+                              .checkLicenseStatus(forceRefresh: true);
 
                           if (!context.mounted) return;
                           setState(() {

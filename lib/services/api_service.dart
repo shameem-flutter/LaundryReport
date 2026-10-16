@@ -13,6 +13,7 @@ import 'package:laundry/models/incomeandexpensemodel.dart';
 import 'package:laundry/models/itemwise.dart';
 import 'package:laundry/models/orderreport.dart';
 import 'package:laundry/models/item.dart';
+import 'package:laundry/models/order_summary_report_model.dart';
 import 'package:laundry/models/salereportmodel.dart';
 import 'package:laundry/models/services.dart';
 import 'package:laundry/services/api_endpoints.dart';
@@ -53,11 +54,22 @@ class ApiService {
         DateTime.now().difference(_lastLicenseCheck!) < const Duration(minutes: 5)) {
       return _cachedLicenseStatus!;
     }
+    if (ApiEndpoints.baseUrl.trim().isEmpty) {
+      return false;
+    }
     try {
       final response = await _dio.get(ApiEndpoints.checkLicense);
       if (response.statusCode == 200) {
         final data = response.data;
-        _cachedLicenseStatus = data['status'] == 'active';
+        if (data is Map) {
+          final status = data['status'];
+          _cachedLicenseStatus = status == 'active' || status == true || status == 1;
+        } else if (data is List && data.isNotEmpty && data.first is Map) {
+          final status = data.first['status'];
+          _cachedLicenseStatus = status == 'active' || status == true || status == 1;
+        } else {
+          _cachedLicenseStatus = false;
+        }
         _lastLicenseCheck = DateTime.now();
         return _cachedLicenseStatus!;
       }
@@ -216,6 +228,51 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Error fetching item-wise report: $e');
+    }
+  }
+
+  Future<OrderSummaryReportResponse> fetchOrderSummaryReport({
+    required String startDate,
+    required String endDate,
+    String? orderStatus,
+    String? paymentStatus,
+    String? deliveryStatus,
+    String? customerId,
+    String? orderNo,
+    String? paymentMode,
+  }) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.orderSummaryReport,
+        queryParameters: {
+          'start_date': startDate,
+          'end_date': endDate,
+          if (orderStatus != null && orderStatus != "All")
+            'order_status': orderStatus,
+          if (paymentStatus != null && paymentStatus != "All")
+            'payment_status': paymentStatus,
+          if (deliveryStatus != null && deliveryStatus != "All")
+            'delivery_status': deliveryStatus,
+          if (customerId != null &&
+              customerId.isNotEmpty &&
+              customerId != "All")
+            'customer_id': customerId,
+          if (orderNo != null && orderNo.isNotEmpty) 'order_no': orderNo,
+          if (paymentMode != null &&
+              paymentMode.isNotEmpty &&
+              paymentMode != "All")
+            'payment_mode': paymentMode,
+        },
+      );
+      print('🔍 API URL (OrderSummary): ${response.realUri}');
+
+      if (response.statusCode == 200) {
+        return OrderSummaryReportResponse.fromJson(response.data);
+      } else {
+        throw Exception('Failed to load order summary report');
+      }
+    } catch (e) {
+      throw Exception('Error fetching order summary report: $e');
     }
   }
 
